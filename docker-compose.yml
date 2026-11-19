@@ -1,0 +1,36 @@
+name: ticketing
+
+services:
+  secrets:
+    image: node:22-alpine
+    command: ["node", "/scripts/init-secrets.mjs"]
+    volumes:
+      - ./infra/secrets:/scripts:ro
+      - db-secrets:/out/db
+      - api-secrets:/out/api
+    restart: "no"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ticketing}
+      POSTGRES_USER: ${DB_OWNER_USER:-ticketing_owner}
+      POSTGRES_PASSWORD_FILE: /run/secrets-gen/db_owner_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-secrets:/run/secrets-gen:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  db-data:
+  db-secrets:
+  api-secrets:
