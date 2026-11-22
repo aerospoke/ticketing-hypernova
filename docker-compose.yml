@@ -2,7 +2,7 @@ name: ticketing
 
 services:
   secrets:
-    image: node:22-alpine
+    image: node:24-alpine
     command: ["node", "/scripts/init-secrets.mjs"]
     volumes:
       - ./infra/secrets:/scripts:ro

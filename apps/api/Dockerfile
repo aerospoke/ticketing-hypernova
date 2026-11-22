@@ -1,7 +1,7 @@
 # Imagen de la API. La usan dos servicios de compose: `migrate` (migraciones + semilla)
 # y, más adelante, `api`. Contexto de build: raíz del monorepo (lockfile único).
 
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 # npm ci valida el lockfile contra todos los workspaces: se copian todos los package.json.
 COPY package.json package-lock.json ./
@@ -18,7 +18,7 @@ RUN npm run build --workspace api
 FROM base AS deps
 RUN npm ci --workspace api --include-workspace-root=false --omit=dev --no-audit --no-fund
 
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules

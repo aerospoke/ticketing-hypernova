@@ -4,7 +4,7 @@
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { chownSync, existsSync, writeFileSync } from 'node:fs';
 
-const NODE_UID = 1000; // usuario `node` de la imagen node:22-alpine (api y migrate)
+const NODE_UID = 1000; // usuario `node` de la imagen node:24-alpine (api y migrate)
 const aleatorio = () => randomBytes(32).toString('base64url');
 
 function asegurar(ruta, generar, { uid, mode }) {
