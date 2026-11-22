@@ -1,5 +1,5 @@
 # Imagen de la API. La usan dos servicios de compose: `migrate` (migraciones + semilla)
-# y, más adelante, `api`. Contexto de build: raíz del monorepo (lockfile único).
+# y `api`. Contexto de build: raíz del monorepo (lockfile único).
 
 FROM node:24-alpine AS base
 WORKDIR /app

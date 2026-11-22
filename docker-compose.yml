@@ -66,6 +66,40 @@ services:
         condition: service_healthy
     restart: "no"
 
+  api:
+    # Misma imagen que migrate (mismo build: el segundo sale de la caché).
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ticketing-api:local
+    environment:
+      PORT: "3000"
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-ticketing}
+      DB_APP_PASSWORD_FILE: /run/secrets-gen/db_app_password
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
+    volumes:
+      # Volumen completo de la API: contraseña de la base, secreto JWT y par Ed25519.
+      - api-secrets:/run/secrets-gen:ro
+    ports:
+      # Por defecto solo en localhost. Para probar Expo en un teléfono físico:
+      # API_BIND=0.0.0.0 (ver README).
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # "Healthy" = /ready: base accesible con el rol de app y esquema en la versión esperada.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ready >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   db-data:
   db-secrets:
