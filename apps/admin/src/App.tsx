@@ -15,7 +15,7 @@ function App() {
       .then(async (r) => {
         const cuerpo = await r.json()
         if (r.ok) setEstado({ tipo: 'listo', esquema: cuerpo.esquema })
-        else setEstado({ tipo: 'error', detalle: cuerpo.motivo ?? `HTTP ${r.status}` })
+        else setEstado({ tipo: 'error', detalle: cuerpo.error?.codigo ?? `HTTP ${r.status}` })
       })
       .catch((e: Error) => setEstado({ tipo: 'error', detalle: e.message }))
   }, [])

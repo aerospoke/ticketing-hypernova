@@ -1,7 +1,10 @@
-import { Controller, Get, HttpCode, Inject, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, HttpCode, Inject } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Pool } from 'pg';
+import { Publico } from '../auth/auth.guard';
+import { ErrorApi } from '../common/errores';
 import { PG_POOL } from '../db/db.module';
 
 /** Última migración incluida en esta build (la que el código espera encontrar en la base). */
@@ -19,6 +22,8 @@ export function versionEsperada(dir = join(__dirname, '..', '..', 'migrations'))
  * /ready   = readiness: la base responde con el rol de app y el esquema está en la
  *            versión que este código espera. Si no, 503 y no se le manda tráfico.
  */
+@Publico()
+@SkipThrottle()
 @Controller()
 export class HealthController {
   private readonly esperada = versionEsperada();
@@ -40,12 +45,10 @@ export class HealthController {
       );
       aplicada = rows[0]?.version ?? null;
     } catch {
-      throw new ServiceUnavailableException({ estado: 'no_listo', motivo: 'base_inaccesible' });
+      throw new ErrorApi(503, 'base_inaccesible', 'La base de datos no responde');
     }
     if (aplicada !== this.esperada) {
-      throw new ServiceUnavailableException({
-        estado: 'no_listo',
-        motivo: 'esquema_desactualizado',
+      throw new ErrorApi(503, 'esquema_desactualizado', 'El esquema no está en la versión esperada', {
         esquema: aplicada,
         esperado: this.esperada,
       });

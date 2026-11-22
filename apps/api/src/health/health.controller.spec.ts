@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { ErrorApi } from '../common/errores';
 import type { Pool } from 'pg';
 import { HealthController, versionEsperada } from './health.controller';
 
@@ -17,9 +17,10 @@ describe('HealthController', () => {
   });
 
   it('/health responde sin tocar la base', () => {
-    const pool = poolQueDevuelve(new Error('no debería llamarse'));
+    const query = jest.fn();
+    const pool = { query } as unknown as Pool;
     expect(new HealthController(pool).health()).toEqual({ estado: 'ok' });
-    expect(pool.query).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
   });
 
   it('/ready está listo cuando el esquema coincide', async () => {
@@ -29,11 +30,14 @@ describe('HealthController', () => {
 
   it('/ready responde 503 si el esquema está atrasado', async () => {
     const ctrl = new HealthController(poolQueDevuelve({ version: '0001' }));
-    await expect(ctrl.ready()).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(ctrl.ready()).rejects.toMatchObject({ codigo: 'esquema_desactualizado', status: 503 });
   });
 
   it('/ready responde 503 si la base no responde', async () => {
     const ctrl = new HealthController(poolQueDevuelve(new Error('ECONNREFUSED')));
-    await expect(ctrl.ready()).rejects.toBeInstanceOf(ServiceUnavailableException);
+    const err = await ctrl.ready().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ErrorApi);
+    expect((err as ErrorApi).codigo).toBe('base_inaccesible');
+    expect((err as ErrorApi).getStatus()).toBe(503);
   });
 });
