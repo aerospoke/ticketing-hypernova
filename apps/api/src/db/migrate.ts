@@ -84,6 +84,8 @@ export async function migrar(client: Client, dir: string): Promise<number> {
       checksum    text NOT NULL,
       aplicada_en timestamptz NOT NULL DEFAULT now()
     )`);
+  // La API la lee en /ready para confirmar que el esquema coincide con su versión.
+  await client.query(`GRANT SELECT ON schema_migrations TO ${client.escapeIdentifier(ROL_APP)}`);
 
   const { rows } = await client.query<{ version: string; nombre: string; checksum: string }>(
     'SELECT version, nombre, checksum FROM schema_migrations ORDER BY version',

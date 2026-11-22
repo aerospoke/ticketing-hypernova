@@ -23,6 +23,25 @@ export function requerido(nombre: string): string {
 /** Rol de aplicación: lo crea el runner y lo usan las migraciones en sus GRANT. */
 export const ROL_APP = 'ticketing_app';
 
+/**
+ * Conexión de la API: rol de aplicación, sin permisos de DDL ni de UPDATE/DELETE en
+ * auditoría. El pool se dimensiona por variable para la prueba de carga.
+ */
+export function configApp(): PoolConfig {
+  return {
+    host: requerido('PGHOST'),
+    port: Number(process.env.PGPORT ?? 5432),
+    database: requerido('PGDATABASE'),
+    user: ROL_APP,
+    password: leerSecreto('DB_APP_PASSWORD'),
+    max: Number(process.env.DB_POOL_MAX ?? 20),
+    connectionTimeoutMillis: 5_000,
+    // Ninguna consulta de la API debería tardar esto; si pasa, mejor fallar que colgar el pool.
+    statement_timeout: 10_000,
+    application_name: 'ticketing-api',
+  };
+}
+
 /** Conexión como dueño del esquema: solo para migraciones y semilla. */
 export function configDueno(): PoolConfig {
   return {
