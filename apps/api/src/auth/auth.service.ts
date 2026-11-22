@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from 'pg';
 import { log } from '../common/contexto';
 import { ErrorApi } from '../common/errores';
 import { PG_POOL } from '../db/db.module';
+import { enTransaccion } from '../db/transaccion';
 import { LLAVE_ACCESS } from './auth.guard';
 import { hashPassword, verificarPassword } from './password';
 import { ACCESS_TTL_S, firmarAccess, hashRefresh, nuevoRefresh, REFRESH_TTL_S, type Rol } from './tokens';
@@ -87,7 +88,7 @@ export class AuthService {
     const hash = hashRefresh(refreshToken);
     // La transacción devuelve el resultado en vez de lanzar: si lanzara, el ROLLBACK
     // desharía justamente la revocación de la familia que queremos dejar grabada.
-    const resultado = await this.enTransaccion(async (c): Promise<ParDeTokens | 'rechazado'> => {
+    const resultado = await enTransaccion(this.pool, async (c): Promise<ParDeTokens | 'rechazado'> => {
       const { rows } = await c.query<{ id: string; familia_id: string; usuario_id: string }>(
         `UPDATE refresh_tokens SET usado_en = now()
           WHERE token_hash = $1 AND usado_en IS NULL AND revocado_en IS NULL AND expira_en > now()
@@ -136,7 +137,7 @@ export class AuthService {
   }
 
   private abrirSesion(usuario: FilaUsuario): Promise<ParDeTokens> {
-    return this.enTransaccion((c) => this.emitir(c, usuario, randomUUID(), null));
+    return enTransaccion(this.pool, (c) => this.emitir(c, usuario, randomUUID(), null));
   }
 
   private async emitir(c: PoolClient, u: FilaUsuario, familiaId: string, reemplaza: string | null): Promise<ParDeTokens> {
@@ -156,21 +157,6 @@ export class AuthService {
       refresh_token: refresh,
       usuario: { id: u.id, nombre: u.nombre, email: u.email, rol: u.rol },
     };
-  }
-
-  private async enTransaccion<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
-    const c = await this.pool.connect();
-    try {
-      await c.query('BEGIN');
-      const r = await fn(c);
-      await c.query('COMMIT');
-      return r;
-    } catch (e) {
-      await c.query('ROLLBACK');
-      throw e;
-    } finally {
-      c.release();
-    }
   }
 }
 
