@@ -61,7 +61,10 @@ Todas son opcionales. Los secretos **no** son variables: se generan solos.
 | `DB_OWNER_USER` | `ticketing_owner` | Rol dueño del esquema (lo usan migraciones y semilla) |
 | `DB_POOL_MAX` | `20` | Conexiones del pool de la API |
 | `AUTH_RATE_LIMIT` | `10` | Peticiones por minuto y por IP a login y registro (refresh: el triple). Se sube solo para la prueba de carga. |
+| `COMPRA_RATE_LIMIT` | `30` | Reservas o pagos por minuto y por IP |
 | `RATE_LIMIT` | `300` | Límite global por minuto y por IP |
+| `RESERVA_TTL_S` | `600` | Vida de una reserva en segundos (bajarlo para demostrar la expiración) |
+| `BARRIDO_INTERVALO_MS` | `5000` | Cada cuánto se liberan las reservas vencidas |
 
 ### Secretos
 
@@ -107,6 +110,10 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/auth/refresh` | pública | Canjea el refresh **una sola vez** por un par nuevo (rotación) |
 | POST | `/v1/auth/logout` | pública | Cierra la sesión: el refresh y **también el access vigente** dejan de servir |
 | GET | `/v1/me` | sesión | Perfil del usuario autenticado |
+| POST | `/v1/reservas` | sesión + `Idempotency-Key` | Reserva `{zona_id, cantidad}`: retiene cupo y congela el precio de la fase vigente. Cualquier monto que mande el cliente se ignora. |
+| GET | `/v1/reservas/:id` | sesión (dueño) | Estado y `segundos_restantes` para el contador |
+| POST | `/v1/reservas/:id/cancelar` | sesión + `Idempotency-Key` | Libera el cupo. Cancelar dos veces no es error. |
+| POST | `/v1/reservas/:id/pago` | sesión + `Idempotency-Key` | Pago simulado y emisión de las entradas |
 | GET | `/health` | pública | Liveness |
 | GET | `/ready` | pública | Readiness |
 
@@ -124,6 +131,42 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
   siga activa. Por eso el logout invalida de inmediato, sin esperar a que el token expire.
 - Login responde lo mismo, y tarda lo mismo, exista o no el correo. Así no se puede averiguar
   qué correos están registrados.
+
+### Flujo de compra e idempotencia
+
+```
+POST /reservas ──► reserva activa (10 min) ──► POST /reservas/:id/pago ──► compra + entradas
+                        │
+                        ├── POST /reservas/:id/cancelar ──► cancelada (cupo devuelto)
+                        └── vence ──► barrido ──► expirada (cupo devuelto)
+```
+
+- **Aforo.** Reservar suma a `zonas.reservadas` con
+  `UPDATE ... WHERE vendidas + reservadas + n <= aforo`. Si no afecta filas, responde
+  `409 cupo_agotado`. Pagar mueve de `reservadas` a `vendidas` en un solo UPDATE. El
+  `CHECK` de la tabla es la red de seguridad.
+- **Orden de locks** en todos los caminos: `reservas` → `cupo_cuenta` → `zonas`. Así no hay
+  deadlocks.
+- **Idempotency-Key.** Es obligatoria en reservar, pagar y cancelar. La fila de la clave se
+  inserta en la **misma transacción** que la operación:
+  - Un duplicado simultáneo espera en el índice único y después devuelve la respuesta
+    guardada, con el header `Idempotent-Replayed: true`.
+  - La misma clave con otra petición responde `422`.
+  - Los errores de negocio (4xx) quedan asociados a la clave; para reintentar más tarde se
+    usa una clave nueva.
+  - Los 5xx no se guardan, así que se puede reintentar con la misma clave.
+- **Un pago por reserva.** `UNIQUE (reserva_id)` en compras: pagar con otra clave devuelve la
+  compra que ya existe.
+- **Expiración.**
+  - Un barrido corre cada `BARRIDO_INTERVALO_MS` con `FOR UPDATE SKIP LOCKED` y un advisory
+    lock (con varias instancias, barre una sola).
+  - No guarda nada en memoria: **si la API se reinicia**, el barrido de arranque libera lo
+    que venció mientras estaba caída.
+- **Pago tardío** (la reserva venció antes de pagar):
+  - Si el barrido todavía no pasó, el cupo sigue retenido y se emite.
+  - Si ya pasó, se intenta recuperar el cupo con los mismos UPDATE condicionales. Si hay
+    cupo, se emite. Si no, la compra queda `reembolso_automatico`: el cobro se registra y se
+    devuelve en `reembolsos` con autor "sistema", y no se emiten entradas.
 
 **Correlación.** Cada respuesta trae `X-Request-Id`, que es el mismo `correlacion_id` de los
 logs JSON. Si el cliente o nginx mandan un `X-Request-Id`, se reutiliza.
@@ -220,13 +263,15 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 
 ## Huecos conocidos
 
-- Sin endpoints de eventos, compra, entradas, escáner ni administración.
+- Sin endpoints de eventos (cartelera y disponibilidad), entradas, escáner ni administración.
+- Sin prueba de carga (200 compradores contra 50 entradas) ni tests automatizados de la
+  compra contra PostgreSQL. Por ahora la compra se verificó con escenarios `curl` (ver
+  [docs/delivery.md](docs/delivery.md)).
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
 - `npm audit`: la API no tiene vulnerabilidades. Hay 3 moderadas en `minimatch`, que solo usan
   las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
   Expo de versión mayor, así que se dejó documentado.
-- Sin prueba de carga (200 compradores contra 50 entradas).
 - Portal: por ahora es una página que solo muestra el estado de la API.
 - App móvil: plantilla de Expo sin integrar.
