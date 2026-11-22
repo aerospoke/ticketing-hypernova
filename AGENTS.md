@@ -100,11 +100,40 @@ archivo, manda este.
   - El segundo ingreso offline se guarda como `duplicado_offline` y abre un incidente. Nunca
     se borra.
 
+### Compra con cuenta o como invitado (bonus, después de los invariantes)
+- **Dos formas de comprar, un solo motor de compra.** El invitado es una fila más en
+  `usuarios` (`tipo = invitado`, sin contraseña). Por eso aforo, límite por cuenta,
+  idempotencia y QR no cambian: siempre hay un `usuario_id`.
+- **Invitado:**
+  - Se identifica con un código de 6 dígitos enviado al correo. En local, Mailpit corre en
+    compose.
+  - Sin ese código, alguien podría agotar el límite de otra persona o saltarse el suyo
+    inventando correos.
+- **Límites por evento:**
+  - Con sesión: el límite del organizador (`eventos.limite_por_cuenta`).
+  - Invitado: 1 entrada.
+- **Fila virtual** (bonus del enunciado, "cola de espera virtual"):
+  - Solo para invitados; con sesión se entra directo.
+  - Admisión FIFO por lotes con `FOR UPDATE SKIP LOCKED`. El turno admitido vence a los pocos
+    minutos.
+  - Es **defensa en profundidad, no la garantía del aforo**: la garantía sigue siendo el
+    UPDATE atómico y el CHECK.
+  - La prueba de carga entra con sesión, sin fila, que es el peor caso para la base.
+- **Reclamar cuenta:** un invitado que se registra con el mismo correo conserva sus compras.
+- **Orden de trabajo:**
+  1. Cuenta + compra + k6 (caso 1).
+  2. Invitado + fila.
+
 ### Seguridad
 - **Refresh tokens:**
   - Se guarda solo su hash SHA-256.
   - Rotan dentro de una familia. Si se reusa un token ya rotado, se revoca la familia entera.
-  - Logout revoca la familia. El access token dura poco.
+  - Logout revoca la familia. El access token dura 10 min, y además el guard comprueba en
+    cada petición que su familia siga activa (consulta por índice). Así el logout invalida
+    de inmediato.
+  - Validación con zod en el borde (`@Body({ schema })`), forma única de error
+    `{ error: { codigo, mensaje, detalles }, correlacion_id }` y logs JSON con
+    `correlacion_id` = `X-Request-Id`.
 - **Rate limiting:** en memoria (`@nestjs/throttler`) con una sola instancia. Redis queda
   documentado como el paso para escalar.
 - **Contraseñas:** scrypt nativo de Node (`apps/api/src/auth/password.ts`).

@@ -60,6 +60,8 @@ Todas son opcionales. Los secretos **no** son variables: se generan solos.
 | `POSTGRES_DB` | `ticketing` | Nombre de la base |
 | `DB_OWNER_USER` | `ticketing_owner` | Rol dueño del esquema (lo usan migraciones y semilla) |
 | `DB_POOL_MAX` | `20` | Conexiones del pool de la API |
+| `AUTH_RATE_LIMIT` | `10` | Peticiones por minuto y por IP a login y registro (refresh: el triple). Se sube solo para la prueba de carga. |
+| `RATE_LIMIT` | `300` | Límite global por minuto y por IP |
 
 ### Secretos
 
@@ -86,7 +88,45 @@ Credenciales del dataset oficial (solo para el entorno local):
 | staff | `staff1@ticketing.test` … `staff12@ticketing.test` | `Staff2026!` |
 | asistente | `asistente1@correo.test` … `asistente600@correo.test` | `Asistente2026!` |
 
-El login todavía no tiene endpoint. Las contraseñas se guardan con scrypt.
+Las contraseñas se guardan con scrypt. Ejemplo:
+
+```bash
+curl -s localhost:3000/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"asistente1@correo.test","password":"Asistente2026!"}'
+```
+
+## Endpoints
+
+Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** exigen
+`Authorization: Bearer <access_token>`, salvo las marcadas como públicas.
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| POST | `/v1/auth/registro` | pública | Crea una cuenta de asistente y abre sesión |
+| POST | `/v1/auth/login` | pública | Abre sesión: devuelve el access token (10 min) y el refresh token (30 días) |
+| POST | `/v1/auth/refresh` | pública | Canjea el refresh **una sola vez** por un par nuevo (rotación) |
+| POST | `/v1/auth/logout` | pública | Cierra la sesión: el refresh y **también el access vigente** dejan de servir |
+| GET | `/v1/me` | sesión | Perfil del usuario autenticado |
+| GET | `/health` | pública | Liveness |
+| GET | `/ready` | pública | Readiness |
+
+**Errores.** Todas las respuestas de error tienen la misma forma. El cliente decide por
+`codigo`, no por el texto:
+
+```json
+{ "error": { "codigo": "credenciales_invalidas", "mensaje": "...", "detalles": [] }, "correlacion_id": "..." }
+```
+
+**Sesiones.**
+- Si llega un refresh token **ya usado**, se interpreta como robo: se revoca toda la sesión
+  (la familia de tokens) y hay que volver a iniciar sesión.
+- El access token lleva el id de su sesión, y en cada petición se comprueba que esa sesión
+  siga activa. Por eso el logout invalida de inmediato, sin esperar a que el token expire.
+- Login responde lo mismo, y tarda lo mismo, exista o no el correo. Así no se puede averiguar
+  qué correos están registrados.
+
+**Correlación.** Cada respuesta trae `X-Request-Id`, que es el mismo `correlacion_id` de los
+logs JSON. Si el cliente o nginx mandan un `X-Request-Id`, se reutiliza.
 
 ## Datos de prueba
 
@@ -180,8 +220,13 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 
 ## Huecos conocidos
 
-- Sin endpoints de autenticación, eventos, compra, entradas, escáner ni administración.
+- Sin endpoints de eventos, compra, entradas, escáner ni administración.
+- Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
+  compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
+  todavía no se configuró `trust proxy`.
+- `npm audit`: la API no tiene vulnerabilidades. Hay 3 moderadas en `minimatch`, que solo usan
+  las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
+  Expo de versión mayor, así que se dejó documentado.
 - Sin prueba de carga (200 compradores contra 50 entradas).
 - Portal: por ahora es una página que solo muestra el estado de la API.
 - App móvil: plantilla de Expo sin integrar.
-- Logs con identificador de correlación: pendiente. nginx ya reenvía `X-Request-Id`.

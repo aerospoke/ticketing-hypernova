@@ -17,6 +17,17 @@ Revisión humana: `pendiente` hasta que una persona revise el código **y** la e
 | B5 | Importador idempotente y ancla de fechas persistida | ✅ | `docker compose run --rm migrate`, luego `... migrate node dist/db/seed.js`, luego `down` y `up` sin `-v`. Diff de conteos antes y después. | `migraciones_ok nuevas:0` y `semilla_ya_aplicada` las 3 veces. El diff salió vacío: 16 tablas con los mismos conteos, el mismo `desplazamiento` (82 días), la misma `aplicada_en` y la misma huella de fechas. | Semilla y tabla `semillas` | pendiente | — |
 | B6 | Ningún secreto en el repo ni en los logs | ✅ | Buscar el valor de cada secreto en `docker compose logs`, y revisar `git ls-files` | Ningún secreto en 48 líneas de log. En git solo está `infra/secrets/init-secrets.mjs`. | Script de verificación | pendiente | — |
 
+## Autenticación y seguridad
+
+| # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
+|---|---|---|---|---|---|---|---|
+| A1 | Login, validación en el borde y forma única de errores | ✅ | `curl` a `/v1/auth/login` con datos inválidos, con contraseña mala, con un correo inexistente y con un correo `"Asistente1@correo.test "` | 400 `peticion_invalida` con detalle por campo. Mismo 401 `credenciales_invalidas` exista o no el correo. El correo con mayúscula y espacio se normaliza y entra. | `AuthService`, esquemas zod, `FiltroErrores` | pendiente | — |
+| A2 | Refresh con rotación y detección de reuso | ✅ | login, luego refresh, luego reusar el refresh viejo | El refresh emite un par nuevo. Al reusar el viejo: 401 `refresh_invalido`. El refresh nuevo también muere y el access nuevo da 401 `sesion_cerrada`. El log registra `refresh_reusado_familia_revocada`. | `AuthService.refrescar` | pendiente | — |
+| A3 | Logout que invalida de verdad | ✅ | registro, `/v1/me` (200), logout (204), `/v1/me` con el **mismo** access | 401 `sesion_cerrada` sin esperar a que el access expire. El refresh posterior da 401. | `AuthGuard` (consulta de la familia activa) | pendiente | — |
+| A4 | Token alterado (escalar a admin) | ✅ | Cambiar `rol` en el payload del JWT y llamar a `/v1/me`. También tests en `tokens.spec.ts`: alg `none`, otra llave, expirado, otra audiencia. | 401 `token_invalido`. 7 tests de tokens en verde. | `tokens.ts` y sus tests | pendiente | — |
+| A5 | Rate limiting en autenticación | ✅ | 12 logins seguidos desde la misma IP | `401 ×9` y después `429 ×3` (`demasiadas_peticiones`). El límite es 10 por minuto e incluye un login previo. | `ThrottlerGuard` | pendiente | Límite de compra, cuando exista |
+| A6 | Logs estructurados con correlación | ✅ | `curl -H 'x-request-id: demo-correlacion-123' /v1/me` | La respuesta trae `X-Request-Id: demo-correlacion-123` y el log JSON tiene `correlacion_id` igual a ese valor. | `CorrelacionMiddleware` | pendiente | — |
+
 ## Casos del enunciado ("Cómo se va a probar tu entrega")
 
 | # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
