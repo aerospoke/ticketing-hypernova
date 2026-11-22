@@ -221,6 +221,15 @@ npm ci && npm test -w api
 
 Los resultados observados están en [docs/delivery.md](docs/delivery.md).
 
+### Prueba de carga (200 compradores contra 50 entradas)
+
+```bash
+./load-tests/correr.sh
+```
+
+Solo requiere Docker. Resultado: **exactamente 50 vendidas** en 3 de 3 corridas, verificado
+en PostgreSQL. Detalle, resultados y explicación en [load-tests/README.md](load-tests/README.md).
+
 ## Arquitectura (resumen)
 
 - **Monorepo** con npm workspaces y un solo lockfile, en Node 24 LTS:
@@ -264,9 +273,8 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 ## Huecos conocidos
 
 - Sin endpoints de eventos (cartelera y disponibilidad), entradas, escáner ni administración.
-- Sin prueba de carga (200 compradores contra 50 entradas) ni tests automatizados de la
-  compra contra PostgreSQL. Por ahora la compra se verificó con escenarios `curl` (ver
-  [docs/delivery.md](docs/delivery.md)).
+- Sin tests automatizados de la compra contra PostgreSQL. Por ahora la compra se verificó
+  con escenarios `curl` y con la prueba de carga (ver [docs/delivery.md](docs/delivery.md)).
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
