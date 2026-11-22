@@ -82,7 +82,11 @@ services:
       DB_POOL_MAX: ${DB_POOL_MAX:-20}
       # Peticiones por minuto y por IP: login y registro, y límite global.
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
+      COMPRA_RATE_LIMIT: ${COMPRA_RATE_LIMIT:-30}
       RATE_LIMIT: ${RATE_LIMIT:-300}
+      # Vida de una reserva y frecuencia del barrido que libera las vencidas.
+      RESERVA_TTL_S: ${RESERVA_TTL_S:-600}
+      BARRIDO_INTERVALO_MS: ${BARRIDO_INTERVALO_MS:-5000}
     volumes:
       # Volumen completo de la API: contraseña de la base, secreto JWT y par Ed25519.
       - api-secrets:/run/secrets-gen:ro

@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { CompraModule } from './compra/compra.module';
 import { CorrelacionMiddleware } from './common/correlacion.middleware';
 import { FiltroErrores } from './common/errores';
 import { DbModule } from './db/db.module';
@@ -15,6 +16,7 @@ import { HealthController } from './health/health.controller';
     // instancias el contador tendría que vivir en Redis (decisión documentada).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: Number(process.env.RATE_LIMIT ?? 300) }]),
     AuthModule,
+    CompraModule,
   ],
   controllers: [HealthController],
   providers: [
