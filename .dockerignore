@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.expo
+.git
+.env
+.env.*
+*.pem
+*.key
+docs
+load-tests

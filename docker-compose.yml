@@ -30,6 +30,42 @@ services:
       timeout: 3s
       retries: 30
 
+  # Aplica migraciones y semilla y termina. La API (y luego el portal) esperan a que
+  # este servicio salga con código 0: si una migración falla, nada arranca sobre un
+  # esquema a medias.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ticketing-api:local
+    command: ["sh", "-c", "node dist/db/migrate.js && node dist/db/seed.js"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-ticketing}
+      DB_OWNER_USER: ${DB_OWNER_USER:-ticketing_owner}
+      DB_OWNER_PASSWORD_FILE: /run/secrets-gen/db_owner_password
+      DB_APP_PASSWORD_FILE: /run/secrets-gen/db_app_password
+    volumes:
+      # Solo los dos archivos que necesita: migrate nunca ve la llave de firma ni el
+      # secreto JWT que viven en el mismo volumen de la API.
+      - type: volume
+        source: db-secrets
+        target: /run/secrets-gen/db_owner_password
+        read_only: true
+        volume:
+          subpath: db_owner_password
+      - type: volume
+        source: api-secrets
+        target: /run/secrets-gen/db_app_password
+        read_only: true
+        volume:
+          subpath: db_app_password
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   db-data:
   db-secrets:
