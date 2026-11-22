@@ -13,6 +13,7 @@ export const contexto = new AsyncLocalStorage<ContextoPeticion>();
 
 /** Log estructurado: una línea JSON con la correlación de la petición en curso. */
 export function log(nivel: 'info' | 'warn' | 'error', msg: string, extra: Record<string, unknown> = {}) {
+  if (process.env.LOG_SILENCIO === '1') return; // tests e2e: salida limpia
   const ctx = contexto.getStore();
   const linea = JSON.stringify({
     ts: new Date().toISOString(),
