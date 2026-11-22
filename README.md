@@ -221,6 +221,41 @@ npm ci && npm test -w api
 
 Los resultados observados están en [docs/delivery.md](docs/delivery.md).
 
+## Pruebas automatizadas
+
+Requieren Node 24.9 o superior (`fnm use` o `nvm use`, que leen `.nvmrc`) y Docker.
+
+| Comando | Tipo | Qué cubre |
+|---|---|---|
+| `npm test -w api` | Unitarias (sin base) | Tokens: firma, alteración del payload, `alg: none`, otra llave, expirado, otra audiencia. `/health` y `/ready` (esquema desactualizado, base caída). |
+| `./apps/api/test/correr-e2e.sh` | e2e contra **PostgreSQL real** (proyecto aislado `ticketing-test`, se borra al terminar) | Ver la lista de abajo. |
+| `./load-tests/correr.sh` | Carga (k6) | 200 compradores contra 50 entradas, verificado en PostgreSQL. |
+
+Los e2e levantan la app dentro de jest, conectada con el **rol de aplicación** (los mismos
+permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
+
+- **Aforo:**
+  - 20 compradores simultáneos por 5 lugares: exactamente 5 reservan y 15 reciben `409`.
+  - El `CHECK` rechaza una sobreventa escrita directo en la base.
+- **Límite por cuenta:** dos reservas simultáneas que juntas lo superan: solo una entra.
+- **Cobro único:**
+  - Precio manipulado: se ignora y se cobra el de la fase.
+  - 5 pagos simultáneos con la misma clave: 1 compra y 1 cobro.
+  - Pagar con otra clave devuelve la misma compra.
+  - Reservar dos veces con la misma clave retiene cupo una sola vez.
+  - Misma clave con otra petición: `422`. Sin clave: `400`.
+- **Acceso:** la reserva ajena da `404` y sin sesión da `401`.
+- **Cancelación y expiración:**
+  - Cancelar libera el cupo y es idempotente.
+  - Una reserva vencida devuelve el cupo a la zona y a la cuenta.
+  - Pago tardío con cupo: se emite.
+  - Pago tardío sin cupo: `reembolso_automatico`, sin entradas.
+
+**¿Los tests detectan bugs de verdad?** Se comprobó rompiendo a propósito el UPDATE de aforo
+(sin `vendidas + reservadas + n <= aforo`): fallan 2 tests. Aun así **no hubo sobreventa**:
+el `CHECK` de la tabla rechazó las escrituras (la API respondió 500 en lugar de 409). Las dos
+capas funcionan por separado.
+
 ### Prueba de carga (200 compradores contra 50 entradas)
 
 ```bash
@@ -273,8 +308,6 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 ## Huecos conocidos
 
 - Sin endpoints de eventos (cartelera y disponibilidad), entradas, escáner ni administración.
-- Sin tests automatizados de la compra contra PostgreSQL. Por ahora la compra se verificó
-  con escenarios `curl` y con la prueba de carga (ver [docs/delivery.md](docs/delivery.md)).
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
