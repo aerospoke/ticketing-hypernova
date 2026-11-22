@@ -1,0 +1,19 @@
+Fecha:  2026-11-22T23:45:08Z
+Commit: 55f8798
+k6:     grafana/k6:2.3.0
+== Antes   (aforo | vendidas | reservadas | entradas vigentes en la tabla | disponibles)
+   500 | 450 | 0 | 450 | 50
+== k6: 200 compradores concurrentes
+Compradores:          200 (zona 8)
+Ventas (k6):          50
+Rechazos 409:         150
+Errores inesperados:  0
+Reserva  p50 / p95:   169.2 ms / 195.6 ms
+Pago     p50 / p95:   135.1 ms / 182.7 ms
+Umbrales:             todos OK
+== Después (verificado en PostgreSQL)
+   500 | 500 | 0 | 500 | 0
+   Entradas nuevas emitidas en la zona 8: 50
+   Zonas con sobreventa:                    0
+   Contador vendidas = filas en entradas:   t
+== Resultado: OK: exactamente 50 vendidas
