@@ -21,8 +21,9 @@ apps/
     src/common/        errores uniformes, correlación, logs JSON, acceso por evento
     test/              e2e contra PostgreSQL real (correr-e2e.sh)
     Dockerfile         una imagen para los servicios migrate y api
-  admin/               React + Vite. Dockerfile y nginx/default.conf (proxy a la api)
-  mobile/              Expo (plantilla, fuera de Docker)
+  admin/               Portal React + Vite (sin router externo: hash). src/paginas/*, src/api.ts
+                       (refresh en sessionStorage), Dockerfile y nginx/default.conf (proxy a la api)
+  mobile/              Expo SDK 58 (Expo Go): billetera con QR offline y escáner offline con SQLite
 packages/shared/       qr.ts: formato, generación y verificación OFFLINE del código rotativo
                        (@noble/curves, JS puro: API, tests y app usan la misma función).
                        Se compila a dist/: construirlo antes que la API

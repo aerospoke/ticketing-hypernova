@@ -32,11 +32,17 @@ Revisión humana: `pendiente` hasta que una persona revise el código **y** la e
 
 | # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
 |---|---|---|---|---|---|---|---|
-| T1 | e2e contra PostgreSQL real | ✅ | `./apps/api/test/correr-e2e.sh` (Node 24) | 49/49: eventos y administración (8), reembolsos (8), escaneo y permisos (8), además de los de abajo. Compra (14): aforo concurrente, límite por cuenta concurrente, precio manipulado, doble toque, idempotencia, acceso ajeno, cancelación, expiración y los dos casos de pago tardío. Entradas y QR (11): código válido, captura vieja, copia a otro teléfono, credencial alterada o falsa, otro evento o zona, cambio de teléfono, transferencia con revocación, reglas de transferencia y acceso a revocaciones. | `test/compra.e2e-spec.ts`, `correr-e2e.sh` | pendiente | e2e de reembolso y escaneo cuando existan |
+| T1 | e2e contra PostgreSQL real | ✅ | `./apps/api/test/correr-e2e.sh` (Node 24) | 55/55: reportes (5), eventos y administración (8), reembolsos (8), escaneo y permisos (8), además de los de abajo. Compra (14): aforo concurrente, límite por cuenta concurrente, precio manipulado, doble toque, idempotencia, acceso ajeno, cancelación, expiración y los dos casos de pago tardío. Entradas y QR (11): código válido, captura vieja, copia a otro teléfono, credencial alterada o falsa, otro evento o zona, cambio de teléfono, transferencia con revocación, reglas de transferencia y acceso a revocaciones. | `test/compra.e2e-spec.ts`, `correr-e2e.sh` | pendiente | e2e de reembolso y escaneo cuando existan |
 | T2 | Los tests detectan bugs (mutación) | ✅ | Quitar `AND vendidas + reservadas + $2 <= aforo` del UPDATE y correr los e2e. Después restaurar. | Fallan 2 tests (la carrera 20 contra 5 y el pago tardío sin cupo). Sin sobreventa: el `CHECK` rechazó las escrituras (500 en lugar de 409). Restaurado: 14/14. | Prueba de mutación manual | pendiente | — |
 | T4 | Mutación en el reembolso | ✅ | Quitar `AND estado IN ('pagada','transferida')` del UPDATE de `reembolsos.service.ts`. Después restaurar. | Fallan 2 tests (entrada usada y doble reembolso). Restaurado: 41/41. | Prueba de mutación manual | pendiente | — |
 | T5 | Mutación en permisos | ✅ | Quitar `exigirAccesoEvento` de `actualizarEvento`. Después restaurar. | Falla el test del caso 8. Restaurado: 49/49. | Prueba de mutación manual | pendiente | — |
 | T3 | Mutación en el QR | ✅ | Reemplazar el chequeo de ventana por `if (false)` en `qr.ts` y correr los e2e. Después restaurar. | Falla 1 test (captura de 1 minuto). Restaurado: 25/25. | Prueba de mutación manual | pendiente | — |
+
+## Portal web
+
+| # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
+|---|---|---|---|---|---|---|---|
+| P1 | Portal construido con todas las secciones del enunciado | ✅ (build) | `npm run build -w admin && npm run lint -w admin`. Después, `docker compose up` y recorrido por la API a través de nginx (`:8080`) con `org.istmo`. | Build y lint sin errores. Por nginx: listado de eventos con ocupación, ventas del evento 4 (neto US$ 22 006), accesos del evento 1 (724 dentro: Puerta A 251, B 215, C 258), búsqueda, auditoría 200; `org.canal` recibe 404 en ventas del evento 4. 55/55 e2e, incluidos 5 de reportes. | Portal y `ReportesService` | pendiente | **Revisar en el navegador** (no se pudo abrir un navegador desde el agente) |
 
 ## App móvil
 

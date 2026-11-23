@@ -139,6 +139,11 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/admin/zonas/:id/fases` · `PATCH /v1/admin/fases/:id` | organizador dueño o admin | Fases de precio (preventa, general, taquilla) |
 | POST | `/v1/admin/eventos/:id/puertas` | organizador dueño o admin | Puertas |
 | PUT / DELETE | `/v1/admin/eventos/:id/staff/:staffId` | organizador dueño o admin | Asignar o quitar staff (solo staff del mismo organizador) |
+| GET | `/v1/admin/eventos/:id/ventas` | organizador dueño o admin | Por zona: vendidas, reservadas, disponibles, precio vigente, cobrado, reembolsado y neto |
+| GET | `/v1/admin/eventos/:id/accesos` | organizador dueño o admin | Ingresos por puerta y por hora, aforo dentro del recinto, dispositivos y su última sincronización |
+| GET | `/v1/admin/eventos/:id/entradas?q=` | organizador dueño o admin | Buscar entradas por correo o nombre del comprador o titular, o por número |
+| POST | `/v1/admin/incidentes/:id/resolver` | organizador dueño o admin | Marca un incidente como resuelto `{nota}` (auditado) |
+| GET | `/v1/admin/auditoria?cursor=` | organizador (sus acciones) o admin (todas) | Registro inmutable de acciones administrativas |
 | POST | `/v1/admin/entradas/:id/reembolso` | organizador dueño o admin + `Idempotency-Key` | Reembolso `{motivo}`, sin fecha límite. Queda en la auditoría. |
 | POST | `/v1/admin/entradas/:id/anular` | organizador dueño o admin + `Idempotency-Key` | Anulación sin devolución `{motivo}` (por ejemplo, fraude). Queda en la auditoría. |
 | GET | `/health` | pública | Liveness |
@@ -437,6 +442,12 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
   - **Caso 8:** el organizador ajeno recibe 404 en 8 operaciones (ver, editar evento, zonas,
     fases, puertas y staff) y nada cambia en la base.
   - Asistente: 403. Admin: acceso total.
+- **Reportes:**
+  - Ventas netas de reembolsos.
+  - Accesos por puerta y hora, con dispositivos.
+  - Búsqueda por comprador, escapando los comodines de `LIKE`.
+  - Auditoría: el organizador ve solo sus acciones.
+  - Resolver incidentes: queda auditado; el organizador ajeno recibe 404 y resolver dos veces da 409.
 - **Permisos:**
   - Staff no asignado: no puede abrir turno.
   - Dispositivo ajeno: no se puede registrar ni usar para subir lotes.
@@ -497,6 +508,29 @@ Más detalle en [docs/agent-handoff.md](docs/agent-handoff.md).
 Cada `CREATE TABLE` en `apps/api/migrations/` explica en sus comentarios el porqué de cada
 restricción.
 
+## Portal web
+
+React + Vite, construido y servido por nginx en `http://localhost:8080`. Entran
+organizadores y admin (`org.istmo@ticketing.test` / `Organizador2026!`,
+`admin@ticketing.test` / `Admin2026!`).
+
+| Sección | Qué permite |
+|---|---|
+| Eventos | Listado con ocupación. Crear eventos en borrador. |
+| Ventas | Por zona: vendidas, reservadas vigentes, disponibles e ingresos (cobrado, reembolsado y neto). Se refresca cada 5 s. |
+| Configuración | Datos del evento y publicación, zonas con aforo, fases de precio, puertas y staff asignado. Los errores de la base se muestran tal cual (por ejemplo, "aforo menor que lo vendido"). |
+| Entradas | Buscar por comprador, y reembolsar o anular con motivo. |
+| Accesos | Ingresos por puerta y por hora, cuántos hay dentro del recinto, y dispositivos con su última sincronización (avisa si un escáner con turno abierto lleva más de 10 min sin sincronizar). |
+| Incidentes | Doble ingreso, firma inválida y escáner desincronizado, con el detalle de ambos ingresos. Se pueden resolver con una nota. Se refresca cada 10 s. |
+| Auditoría | Registro inmutable de acciones administrativas. |
+
+Para desarrollo con recarga en caliente: `npm run dev -w admin`. Vite hace de proxy de `/v1`
+hacia `http://localhost:3000`.
+
+**Decisión sobre la sesión del portal:** el access token vive en memoria y el refresh en
+`sessionStorage`, que se borra al cerrar la pestaña. Con más tiempo, el refresh iría en una
+cookie `httpOnly` y `SameSite=Strict` emitida por la API.
+
 ## App móvil
 
 `apps/mobile` (Expo SDK 58) corre **fuera** de Docker, con Expo Go: no hace falta compilar
@@ -513,12 +547,11 @@ cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
 
 ## Huecos conocidos
 
-- Reportes del portal pendientes: ventas e ingresos por zona, accesos por puerta y hora, dispositivos, auditoría y búsqueda de entradas por comprador.
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
 - `npm audit`: la API no tiene vulnerabilidades. Hay 3 moderadas en `minimatch`, que solo usan
   las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
   Expo de versión mayor, así que se dejó documentado.
-- Portal: por ahora es una página que solo muestra el estado de la API.
+- Incidente "pico sospechoso de compra": el tipo existe en la base y en el portal, pero todavía no hay un detector que lo genere.
 - App móvil: sin build instalable (se usa Expo Go) y sin tests e2e de interfaz (Detox o Maestro son bonus).
