@@ -228,7 +228,7 @@ export class CompraService {
     const { rows } = await c.query(
       `SELECT c.id, c.reserva_id, c.evento_id, c.zona_id, c.cantidad, c.precio_unitario_centesimos,
               c.monto_centesimos, c.estado, c.referencia_pago, c.pagada_en, c.reembolsada_en,
-              COALESCE(json_agg(json_build_object('id', e.id, 'estado', e.estado) ORDER BY e.id)
+              COALESCE(json_agg(json_build_object('id', e.id::text, 'estado', e.estado) ORDER BY e.id)
                        FILTER (WHERE e.id IS NOT NULL), '[]') AS entradas
          FROM compras c LEFT JOIN entradas e ON e.compra_id = c.id
         WHERE c.id = $1 GROUP BY c.id`,
