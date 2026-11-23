@@ -114,6 +114,15 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | GET | `/v1/reservas/:id` | sesión (dueño) | Estado y `segundos_restantes` para el contador |
 | POST | `/v1/reservas/:id/cancelar` | sesión + `Idempotency-Key` | Libera el cupo. Cancelar dos veces no es error. |
 | POST | `/v1/reservas/:id/pago` | sesión + `Idempotency-Key` | Pago simulado y emisión de las entradas |
+| GET | `/v1/me/entradas?cursor=` | sesión | Billetera (paginación por cursor) |
+| POST | `/v1/entradas/:id/material` | sesión (titular) | Material del código rotativo: `{dispositivo_pubkey}` y devuelve la credencial firmada por el servidor |
+| POST | `/v1/entradas/:id/transferencias` | sesión (titular) | Transferir por correo `{email}`. Queda pendiente. |
+| GET | `/v1/me/transferencias` | sesión | Transferencias enviadas y recibidas, con su estado |
+| POST | `/v1/transferencias/:id/aceptar` | sesión (destinatario) | Cambia el titular, sube la versión y revoca el código anterior |
+| POST | `/v1/transferencias/:id/rechazar` | sesión (destinatario) | Rechaza la transferencia |
+| POST | `/v1/transferencias/:id/cancelar` | sesión (emisor) | Cancela una transferencia pendiente |
+| GET | `/v1/escaner/llave` | pública | Llave pública Ed25519 del servidor, para verificar sin red |
+| GET | `/v1/escaner/eventos/:id/revocaciones?desde=` | staff asignado, organizador dueño o admin | Revocaciones incrementales por cursor |
 | GET | `/health` | pública | Liveness |
 | GET | `/ready` | pública | Readiness |
 
@@ -167,6 +176,45 @@ POST /reservas ──► reserva activa (10 min) ──► POST /reservas/:id/pa
   - Si ya pasó, se intenta recuperar el cupo con los mismos UPDATE condicionales. Si hay
     cupo, se emite. Si no, la compra queda `reembolso_automatico`: el cobro se registra y se
     devuelve en `reembolsos` con autor "sistema", y no se emiten entradas.
+
+### Código QR rotativo (invariante 3)
+
+```
+T1.<credencial>.<firma del servidor>.<timestamp>.<firma del teléfono>
+```
+
+1. **Llave del teléfono.** Al pedir el material, el teléfono del titular envía la llave
+   **pública** de un par Ed25519 propio. La privada nunca sale del dispositivo.
+2. **Credencial.** El servidor firma `{entrada, evento, zona, versión, llave del teléfono,
+   vencimiento}` con **su** llave privada, que vive solo en el volumen de secretos de la API.
+3. **Código.** Cada 15 s, el teléfono firma `credencial + hora actual` con su llave privada.
+4. **Escáner, sin red.** Verifica:
+   - la firma del servidor sobre la credencial;
+   - la firma del teléfono sobre el código;
+   - que `|ahora − hora del código| ≤ 30 s`;
+   - que el evento y la zona correspondan a la puerta;
+   - la lista de revocaciones sincronizada.
+
+| Ataque | Por qué falla |
+|---|---|
+| Falsificar una entrada | No se puede firmar una credencial sin la llave privada del servidor. |
+| Captura de pantalla o foto reenviada | Queda fuera de la ventana de 30 s (`expirado`). |
+| Copiar la credencial a otro teléfono | Falta la llave privada del teléfono vinculado (`firma_invalida`). |
+| Usar el código del dueño anterior tras una transferencia | La versión subió y la anterior está en la lista de revocación (`revocada`). |
+
+Una entrada vale en **un solo teléfono a la vez**: si se pide material desde otro
+dispositivo, la versión sube y el anterior queda revocado.
+
+La verificación vive en `packages/shared` (`verificarToken`). Usa `@noble/curves`, que es JS
+puro y corre igual en la API, en los tests y en la app. Los tests e2e verifican con esa misma
+función credenciales firmadas por la API con `node:crypto`.
+
+**Riesgo aceptado:** un código reenviado dentro de los 30 s sigue siendo válido. Ese caso lo
+cubre el invariante 4: la entrada entra una sola vez.
+
+**Revocaciones con cursor.** Las inserciones toman `pg_advisory_xact_lock` por evento. Así el
+orden de los `id` coincide con el de confirmación y un escáner que pide `id > cursor` no se
+saltea ninguna.
 
 **Correlación.** Cada respuesta trae `X-Request-Id`, que es el mismo `correlacion_id` de los
 logs JSON. Si el cliente o nginx mandan un `X-Request-Id`, se reutiliza.
@@ -245,15 +293,29 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
   - Reservar dos veces con la misma clave retiene cupo una sola vez.
   - Misma clave con otra petición: `422`. Sin clave: `400`.
 - **Acceso:** la reserva ajena da `404` y sin sesión da `401`.
+- **Código rotativo:**
+  - Un código recién generado es válido.
+  - Una captura de hace 60 s se rechaza como `expirado`; una de hace 15 s sigue valiendo.
+  - La credencial copiada a otro teléfono da `firma_invalida`.
+  - Una credencial alterada o firmada con otra llave da `firma_invalida`.
+  - Otro evento u otra zona se rechazan.
+  - Cambiar de teléfono revoca el código del teléfono anterior.
+- **Transferencias:**
+  - Al aceptar, el código del dueño anterior queda `revocada` y el nuevo dueño obtiene el suyo.
+  - Hay una sola transferencia pendiente por entrada, que se puede cancelar o rechazar.
+  - No se puede transferir a uno mismo, ni a quien no es asistente, ni una entrada usada.
+- **Revocaciones:** solo las ve el staff asignado al evento, y el cursor devuelve solo lo nuevo.
 - **Cancelación y expiración:**
   - Cancelar libera el cupo y es idempotente.
   - Una reserva vencida devuelve el cupo a la zona y a la cuenta.
   - Pago tardío con cupo: se emite.
   - Pago tardío sin cupo: `reembolso_automatico`, sin entradas.
 
-**¿Los tests detectan bugs de verdad?** Se comprobó rompiendo a propósito el UPDATE de aforo
-(sin `vendidas + reservadas + n <= aforo`): fallan 2 tests. Aun así **no hubo sobreventa**:
-el `CHECK` de la tabla rechazó las escrituras (la API respondió 500 en lugar de 409). Las dos
+**¿Los tests detectan bugs de verdad?** Se comprobó rompiendo el código a propósito:
+- **Aforo:** sin `vendidas + reservadas + n <= aforo` en el UPDATE, fallan 2 tests.
+- **QR:** sin el chequeo de la ventana de 30 s, falla el test de la captura de pantalla.
+
+En el caso del aforo, además, **no hubo sobreventa**: el `CHECK` de la tabla rechazó las escrituras (la API respondió 500 en lugar de 409). Las dos
 capas funcionan por separado.
 
 ### Prueba de carga (200 compradores contra 50 entradas)

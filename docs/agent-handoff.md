@@ -12,11 +12,20 @@ apps/
     seed/              datos-prueba-ticketing.json (dataset oficial, no se modifica)
     src/db/            config.ts (_FILE), migrate.ts (runner), seed.ts, db.module.ts (pool)
     src/health/        /health y /ready
-    src/auth/          password.ts (scrypt)
+    src/auth/          login, registro, refresh rotativo, logout, guard global, scrypt
+    src/compra/        reservas, pago, cancelación, idempotencia, barrido de expiración
+    src/entradas/      billetera, material del QR (firma Ed25519), transferencias, revocaciones
+    src/escaner/       llave pública y revocaciones incrementales (falta: lotes de escaneo)
+    src/common/        errores uniformes, correlación, logs JSON
+    test/              e2e contra PostgreSQL real (correr-e2e.sh)
     Dockerfile         una imagen para los servicios migrate y api
   admin/               React + Vite. Dockerfile y nginx/default.conf (proxy a la api)
   mobile/              Expo (plantilla, fuera de Docker)
-packages/shared/       tipos compartidos (vacío por ahora)
+packages/shared/       qr.ts: formato, generación y verificación OFFLINE del código rotativo
+                       (@noble/curves, JS puro: API, tests y app usan la misma función).
+                       Se compila a dist/: construirlo antes que la API
+                       (npm run build -w @ticketing/shared; el Dockerfile y correr-e2e.sh ya lo hacen).
+load-tests/            k6 de 200 contra 50 (correr.sh) y resultados
 infra/secrets/         init-secrets.mjs: genera secretos en volúmenes Docker
 docs/                  este archivo y delivery.md
 .claude/skills/        verify-ticket-sales, verify-offline-admission
