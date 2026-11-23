@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { log } from '../common/contexto';
+import type { Response } from 'express';
+import { contexto, log } from '../common/contexto';
 import { ErrorApi } from '../common/errores';
 import { PG_POOL } from '../db/db.module';
 
@@ -116,4 +117,14 @@ export class IdempotenciaService {
       c.release();
     }
   }
+}
+
+/** Aplica el status guardado y marca las repeticiones con `Idempotent-Replayed: true`. */
+export function responder(res: Response, r: RespuestaIdempotente) {
+  res.status(r.status);
+  if (!r.repetida) return r.body;
+  res.setHeader('Idempotent-Replayed', 'true');
+  // Un error repetido conserva su forma, con la correlación de ESTA petición.
+  if (r.status >= 400) return { ...(r.body as object), correlacion_id: contexto.getStore()?.correlacionId };
+  return r.body;
 }

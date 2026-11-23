@@ -4,9 +4,8 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { SesionActual } from '../auth/auth.guard';
 import type { Sesion } from '../auth/tokens';
-import { contexto } from '../common/contexto';
 import { CompraService } from './compra.service';
-import { exigirClave, IdempotenciaService, type RespuestaIdempotente } from './idempotencia.service';
+import { exigirClave, IdempotenciaService, responder } from './idempotencia.service';
 
 const Id = z.string().regex(/^[1-9]\d{0,17}$/, 'id inválido');
 // z.object descarta las claves que no declara: un `monto` o `precio` enviado por el
@@ -75,14 +74,4 @@ export class ReservasController {
     );
     return responder(res, r);
   }
-}
-
-/** Aplica el status guardado y marca las repeticiones con `Idempotent-Replayed: true`. */
-function responder(res: Response, r: RespuestaIdempotente) {
-  res.status(r.status);
-  if (!r.repetida) return r.body;
-  res.setHeader('Idempotent-Replayed', 'true');
-  // Un error repetido conserva su forma, con la correlación de ESTA petición.
-  if (r.status >= 400) return { ...(r.body as object), correlacion_id: contexto.getStore()?.correlacionId };
-  return r.body;
 }
