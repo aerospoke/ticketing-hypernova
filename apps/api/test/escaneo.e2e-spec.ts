@@ -209,6 +209,16 @@ describe('Invariante 4: una entrada entra una sola vez', () => {
 });
 
 describe('Permisos del escáner y del portal', () => {
+  it('el staff ve solo los eventos a los que está asignado, con sus puertas', async () => {
+    const { evento } = await prepararEvento();
+    const r = await ctx.http.get('/v1/escaner/eventos').set('authorization', staff1).expect(200);
+    const ev = r.body.find((e: { id: string }) => e.id === evento);
+    expect(ev.puertas.map((p: { nombre: string }) => p.nombre)).toEqual(['Puerta Norte', 'Puerta Sur']);
+    const ajeno = await login(ctx, 'staff12@ticketing.test', 'Staff2026!');
+    const r2 = await ctx.http.get('/v1/escaner/eventos').set('authorization', ajeno).expect(200);
+    expect(r2.body.map((e: { id: string }) => e.id)).not.toContain(evento);
+  });
+
   it('turnos, dispositivos y lotes solo con los recursos propios', async () => {
     const { evento, norte } = await prepararEvento();
     // Staff de otro organizador: no está asignado al evento.

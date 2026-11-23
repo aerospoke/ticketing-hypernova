@@ -53,6 +53,24 @@ export class EscanerController {
     return { alg: 'Ed25519', llave_publica: this.firma.llavePublica };
   }
 
+  /** Eventos asignados al staff (no finalizados), con sus puertas y zonas, para iniciar turno. */
+  @Roles('staff')
+  @Get('eventos')
+  async misEventos(@SesionActual() s: Sesion) {
+    const { rows } = await this.pool.query(
+      `SELECT e.id, e.nombre, e.recinto, e.fecha,
+              COALESCE((SELECT json_agg(json_build_object('id', p.id::text, 'nombre', p.nombre) ORDER BY p.id)
+                          FROM puertas p WHERE p.evento_id = e.id), '[]') AS puertas,
+              COALESCE((SELECT json_agg(json_build_object('id', z.id::text, 'nombre', z.nombre) ORDER BY z.id)
+                          FROM zonas z WHERE z.evento_id = e.id), '[]') AS zonas
+         FROM asignaciones_staff a JOIN eventos e ON e.id = a.evento_id
+        WHERE a.staff_id = $1 AND e.estado = 'publicado' AND e.fecha > now() - interval '1 day'
+        ORDER BY e.fecha`,
+      [s.usuarioId],
+    );
+    return rows;
+  }
+
   @Roles('staff')
   @Post('dispositivos')
   @HttpCode(200)
