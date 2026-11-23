@@ -25,7 +25,10 @@ trap limpiar EXIT
 
 echo "== Base aislada ($COMPOSE_PROJECT_NAME, puerto $DB_PORT)"
 docker compose down -v >/dev/null 2>&1 || true
-docker compose up -d --build --wait db >/dev/null 2>&1
+# La imagen de migrate se construye explícitamente: `run` usaría una imagen vieja
+# sin las migraciones nuevas.
+docker compose build migrate >/dev/null 2>&1
+docker compose up -d --wait db >/dev/null 2>&1
 # `up --wait` no espera a que un servicio de una sola vez TERMINE: se corre migrate de
 # forma síncrona (migraciones + semilla) y si falla, el script se detiene.
 docker compose run --rm migrate >/dev/null 2>&1 || { echo 'Falló migrate/semilla' >&2; docker compose logs migrate >&2; exit 1; }
