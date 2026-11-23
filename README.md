@@ -598,6 +598,21 @@ cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
   Con Docker Desktop, `10.0.2.2` no llega al API. La IP se obtiene con `ipconfig getifaddr en0`.
 - Simulador iOS: `http://localhost:3000`.
 
+### APK instalable (Android)
+
+El APK está en la página de **Releases** del repositorio (no se sube al repo: es un binario).
+Para usarlo:
+
+1. Levanta el backend visible en la red local: `API_BIND=0.0.0.0 docker compose up`.
+2. Instala el APK en el teléfono (o arrástralo al emulador).
+3. En el login, toca **Servidor · Cambiar**, escribe `http://<IP-de-tu-PC>:3000` y pulsa
+   **Guardar y probar**. Debe decir "✓ Conectado".
+
+Un mismo APK sirve en cualquier red porque la dirección de la API se elige en el login y se
+guarda en el teléfono. Solo se puede cambiar **sin sesión abierta**: los tokens de un
+servidor nunca viajan a otro. Cómo compilarlo y qué concesiones tiene (http sin TLS, firma de
+depuración): [apps/mobile/README.md](apps/mobile/README.md#apk-instalable).
+
 ## Decisiones y lo que no se hizo
 
 **Decisiones de diseño** (el porqué completo está en [AGENTS.md](AGENTS.md) y en los
@@ -629,7 +644,9 @@ comentarios de cada migración):
 - `npm audit`: la API no tiene vulnerabilidades. Hay 3 moderadas en `minimatch`, que solo usan
   las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
   Expo de versión mayor, así que se dejó documentado.
-- App móvil: sin build instalable; se ejecuta con Expo Go siguiendo las instrucciones exactas de [apps/mobile/README.md](apps/mobile/README.md).
+- APK: habla con la API por `http://` sin cifrar (solo pensado para la red local de la demo)
+  y está firmado con la llave de depuración de Android. Para producción: API por HTTPS y una
+  llave de firma propia (por ejemplo con EAS Build).
 - Sesión del portal: el refresh token vive en `sessionStorage`. Lo ideal es una cookie `httpOnly`.
 
 ## Créditos

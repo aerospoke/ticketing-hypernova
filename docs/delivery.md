@@ -50,6 +50,7 @@ Revisión humana: `pendiente` hasta que una persona revise el código **y** la e
 | # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
 |---|---|---|---|---|---|---|---|
 | M1 | La app compila y empaqueta | ✅ | `cd apps/mobile && npx tsc --noEmit && npx expo export --platform android --platform ios` | Tipos sin errores. Bundles Hermes: iOS 3.7 MB y Android 4 MB. Metro resuelve `@ticketing/shared` desde el fuente y `@noble/curves`. | Toda la app | pendiente | Probar en un dispositivo real |
+| M3 | APK instalable que funciona en cualquier red | ✅ | `npx expo prebuild -p android && cd android && ./gradlew assembleRelease`, sin `EXPO_PUBLIC_API_URL`. Instalado con `adb install` en el emulador Android_Bico como app propia (`test.ticketing.app`, sin Expo Go). | 2026-11-23: APK de 80 MB (arm64 y x86_64). Abre en `http://localhost:3000`; en el login, **Servidor · Cambiar** → `http://<IP de la Mac>:3000` → "✓ Conectado". Login de `asistente1` y cartelera con portadas. El manifiesto trae `usesCleartextTraffic="true"`. | Servidor editable (`config.ts`, `ui/servidor.tsx`) y `expo-build-properties` | pendiente | Subir el APK a GitHub Releases |
 | M2 | Flujos en dispositivo real (compra, QR offline, transferencia, escáner en modo avión, dos puertas) | ⬜ | Guion en `apps/mobile/README.md` | — | — | pendiente | **Requiere una persona con teléfonos**: grabar el video |
 
 ## Casos del enunciado ("Cómo se va a probar tu entrega")

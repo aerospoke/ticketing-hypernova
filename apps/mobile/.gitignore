@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# Proyectos nativos: se generan con `npx expo prebuild` desde app.json (no se versionan)
+/android
+/ios

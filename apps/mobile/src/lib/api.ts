@@ -6,7 +6,7 @@
  *   como robo y cerraría la sesión si dos pantallas refrescaran a la vez.
  * - Timeout de 15 s: sin red, la app no queda colgada.
  */
-import { API_URL } from './config';
+import { apiUrl } from './config';
 import { borrarSesion, guardarSesion, sesionActual, type Usuario } from './sesion';
 
 export class ErrorApi extends Error {
@@ -53,7 +53,7 @@ async function pedir(ruta: string, o: Opciones): Promise<Response> {
   const control = new AbortController();
   const timer = setTimeout(() => control.abort(), 15_000);
   try {
-    return await fetch(`${API_URL}${ruta}`, {
+    return await fetch(`${apiUrl()}${ruta}`, {
       method: o.metodo ?? 'GET',
       headers,
       body: o.cuerpo === undefined ? undefined : JSON.stringify(o.cuerpo),
@@ -61,7 +61,7 @@ async function pedir(ruta: string, o: Opciones): Promise<Response> {
     });
   } catch (e) {
     // En desarrollo se registra la causa real (DNS, timeout, cleartext bloqueado...).
-    if (__DEV__) console.warn(`fetch ${o.metodo ?? 'GET'} ${API_URL}${ruta} falló:`, String(e));
+    if (__DEV__) console.warn(`fetch ${o.metodo ?? 'GET'} ${apiUrl()}${ruta} falló:`, String(e));
     throw new ErrorApi(0, 'sin_conexion', 'Sin conexión con el servidor');
   } finally {
     clearTimeout(timer);

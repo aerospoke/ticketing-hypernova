@@ -110,10 +110,36 @@ La lógica criptográfica (generar y verificar el QR) está cubierta por los e2e
 que usan las mismas funciones de `@ticketing/shared`. La app en sí todavía no tiene tests
 automatizados; Detox o Maestro quedan como bonus.
 
+## APK instalable
+
+**Usarlo:** descarga el APK de la página de Releases del repositorio e instálalo. En el
+login, toca **Servidor · Cambiar**, escribe `http://<IP-de-tu-PC>:3000` y pulsa **Guardar y
+probar**. La API tiene que estar levantada con `API_BIND=0.0.0.0`.
+
+**Compilarlo** (Java 17 y Android SDK; no hace falta cuenta de Expo):
+
+```bash
+cd apps/mobile
+npx expo prebuild --platform android      # genera android/ desde app.json (no se versiona)
+cd android && ./gradlew assembleRelease
+# → android/app/build/outputs/apk/release/app-release.apk
+```
+
+**Decisiones:**
+- **Servidor editable en el login.** Un APK no puede depender de la IP de quien lo compiló.
+  La dirección se guarda en SQLite (tabla `ajustes`) y, si no hay ninguna, se usa
+  `EXPO_PUBLIC_API_URL`. Solo se cambia sin sesión abierta: los tokens de un servidor nunca
+  se envían a otro.
+- **`http://` permitido** (`expo-build-properties` → `usesCleartextTraffic`). Android lo
+  bloquea por defecto en release, y la API de la demo corre en la red local sin TLS. En
+  producción, la API va por HTTPS y esta opción se quita.
+- **Firma de depuración.** El APK se firma con la llave pública de depuración de Android
+  (la que trae la plantilla de Expo). Sirve para instalarlo en pruebas, no para publicarlo.
+  Para la tienda: una llave propia, fuera del repo (por ejemplo, con EAS Build).
+
 ## Limitaciones conocidas
 
-- Hecha y probada para Expo Go y builds de desarrollo. Un build de release para Android
-  contra una API `http://` necesita habilitar el tráfico sin TLS
-  (`expo-build-properties` → `usesCleartextTraffic`), o servir la API por HTTPS.
+- El APK habla con la API por `http://` sin cifrar: es para la red local de la demo (ver
+  arriba).
 - Si el reloj del teléfono del asistente y el del escáner difieren en más de 30 s, el código
   se rechaza como expirado. Es el costo de la ventana corta contra capturas de pantalla.

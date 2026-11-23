@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, useWindow
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { iniciarSesion, mensajeDeError } from '../lib/api';
 import { Aviso, Boton, Campo, s } from '../ui/componentes';
+import { ServidorEditable } from '../ui/servidor';
 import { Icono } from '../ui/icono';
 import { FOTOS, Portada } from '../ui/portada';
 import { color, espacio, radio } from '../ui/tema';
@@ -75,6 +76,7 @@ export default function Login() {
           <Link href="/registro" style={e.enlace}>
             ¿No tienes cuenta? <Text style={{ fontWeight: '800' }}>Regístrate</Text>
           </Link>
+          <ServidorEditable />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
