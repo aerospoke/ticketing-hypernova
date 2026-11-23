@@ -5,6 +5,7 @@ import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { CompraModule } from './compra/compra.module';
 import { EntradasModule } from './entradas/entradas.module';
+import { EventosModule } from './eventos/eventos.module';
 import { CorrelacionMiddleware } from './common/correlacion.middleware';
 import { FiltroErrores } from './common/errores';
 import { DbModule } from './db/db.module';
@@ -19,6 +20,7 @@ import { HealthController } from './health/health.controller';
     AuthModule,
     CompraModule,
     EntradasModule,
+    EventosModule,
   ],
   controllers: [HealthController],
   providers: [
