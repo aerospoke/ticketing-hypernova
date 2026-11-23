@@ -1,36 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { logout, restaurar, suscribirSesion, usuarioActual } from './api'
+import { Auditoria } from './paginas/Auditoria'
+import { Evento } from './paginas/Evento'
+import { Eventos } from './paginas/Eventos'
+import { Login } from './paginas/Login'
+import { ir, useRuta } from './util'
 
-type Estado =
-  | { tipo: 'cargando' }
-  | { tipo: 'listo'; esquema: string }
-  | { tipo: 'error'; detalle: string }
-
-// Placeholder del portal: solo confirma que nginx sirve la build y que el proxy
-// /ready -> api funciona. Las pantallas de administración llegan en otro paso.
-function App() {
-  const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' })
+export default function App() {
+  const usuario = useSyncExternalStore(suscribirSesion, usuarioActual)
+  const [listo, setListo] = useState(false)
+  const ruta = useRuta()
 
   useEffect(() => {
-    fetch('/ready')
-      .then(async (r) => {
-        const cuerpo = await r.json()
-        if (r.ok) setEstado({ tipo: 'listo', esquema: cuerpo.esquema })
-        else setEstado({ tipo: 'error', detalle: cuerpo.error?.codigo ?? `HTTP ${r.status}` })
-      })
-      .catch((e: Error) => setEstado({ tipo: 'error', detalle: e.message }))
+    void restaurar().finally(() => setListo(true))
   }, [])
 
+  if (!listo) return <p className="estado">Cargando…</p>
+  if (!usuario) return <Login />
+
+  let pagina = <Eventos />
+  if (ruta[0] === 'eventos' && ruta[1]) pagina = <Evento id={ruta[1]} seccion={ruta[2] ?? 'ventas'} />
+  else if (ruta[0] === 'auditoria') pagina = <Auditoria />
+
   return (
-    <main style={{ maxWidth: 640, margin: '64px auto', padding: '0 16px' }}>
-      <h1>Ticketing · Portal de administración</h1>
-      <p>
-        API:{' '}
-        {estado.tipo === 'cargando' && 'consultando…'}
-        {estado.tipo === 'listo' && <strong>lista (esquema {estado.esquema})</strong>}
-        {estado.tipo === 'error' && <strong>no disponible: {estado.detalle}</strong>}
-      </p>
-    </main>
+    <div className="marco">
+      <header className="cabecera">
+        <a className="marca" href="#/eventos">Ticketing · Portal</a>
+        <nav>
+          <a href="#/eventos" className={ruta[0] !== 'auditoria' ? 'activo' : ''}>Eventos</a>
+          <a href="#/auditoria" className={ruta[0] === 'auditoria' ? 'activo' : ''}>Auditoría</a>
+        </nav>
+        <div className="quien">
+          <span>{usuario.nombre} <small>({usuario.rol})</small></span>
+          <button className="btn btn-claro" onClick={() => void logout().then(() => ir('/eventos'))}>Salir</button>
+        </div>
+      </header>
+      <main className="contenido">{pagina}</main>
+    </div>
   )
 }
-
-export default App
