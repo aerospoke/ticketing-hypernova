@@ -1,18 +1,45 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import '../lib/polyfill';
+
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { migrar } from '../lib/db';
+import { cargarSesion } from '../lib/sesion';
+import { useSesion } from '../lib/usar';
+import { color } from '../ui/tema';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+void SplashScreen.preventAutoHideAsync();
+// Arranque rápido: la base local se migra una vez y la sesión se lee del Keychain.
+migrar();
+void cargarSesion();
 
-SplashScreen.preventAutoHideAsync();
+export default function Raiz() {
+  const { cargada } = useSesion();
+  useEffect(() => {
+    if (cargada) void SplashScreen.hideAsync();
+  }, [cargada]);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          headerTintColor: color.primario,
+          headerTitleStyle: { color: color.texto },
+          contentStyle: { backgroundColor: color.fondo },
+        }}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(asistente)" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ title: 'Iniciar sesión', headerBackVisible: false }} />
+        <Stack.Screen name="registro" options={{ title: 'Crear cuenta' }} />
+        <Stack.Screen name="evento/[id]" options={{ title: 'Evento' }} />
+        <Stack.Screen name="reserva/[id]" options={{ title: 'Tu reserva', headerBackVisible: false }} />
+        <Stack.Screen name="entrada/[id]" options={{ title: 'Entrada' }} />
+        <Stack.Screen name="escaner/index" options={{ title: 'Modo escáner', headerBackVisible: false }} />
+        <Stack.Screen name="escaner/camara" options={{ title: 'Escanear', headerShown: false }} />
+      </Stack>
+    </>
   );
 }
