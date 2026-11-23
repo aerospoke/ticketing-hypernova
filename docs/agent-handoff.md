@@ -15,8 +15,9 @@ apps/
     src/auth/          login, registro, refresh rotativo, logout, guard global, scrypt
     src/compra/        reservas, pago, cancelación, idempotencia, barrido de expiración
     src/entradas/      billetera, material del QR (firma Ed25519), transferencias, revocaciones
-    src/escaner/       llave pública y revocaciones incrementales (falta: lotes de escaneo)
-    src/common/        errores uniformes, correlación, logs JSON
+    src/escaner/       llave pública, revocaciones, dispositivos, turnos y sincronización de lotes
+    src/admin/         portal: incidentes por evento (con control de organizador dueño)
+    src/common/        errores uniformes, correlación, logs JSON, acceso por evento
     test/              e2e contra PostgreSQL real (correr-e2e.sh)
     Dockerfile         una imagen para los servicios migrate y api
   admin/               React + Vite. Dockerfile y nginx/default.conf (proxy a la api)

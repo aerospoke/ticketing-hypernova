@@ -123,6 +123,11 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/transferencias/:id/cancelar` | sesión (emisor) | Cancela una transferencia pendiente |
 | GET | `/v1/escaner/llave` | pública | Llave pública Ed25519 del servidor, para verificar sin red |
 | GET | `/v1/escaner/eventos/:id/revocaciones?desde=` | staff asignado, organizador dueño o admin | Revocaciones incrementales por cursor |
+| POST | `/v1/escaner/dispositivos` | staff | Registro del dispositivo `{id (uuid generado en el teléfono), nombre, plataforma}` |
+| POST | `/v1/escaner/turnos` | staff asignado | Inicio de turno `{evento_id, puerta_id, dispositivo_id}`: queda registrado quién escanea, dónde y con qué equipo |
+| POST | `/v1/escaner/turnos/:id/cerrar` | staff | Fin de turno |
+| POST | `/v1/escaner/lotes` | staff (dueño del dispositivo) | Sube hasta 500 escaneos hechos sin red. Reenviar el lote es seguro. |
+| GET | `/v1/admin/eventos/:id/incidentes` | organizador dueño o admin | Incidentes del evento (doble ingreso, firma inválida, escáner desincronizado) |
 | GET | `/health` | pública | Liveness |
 | GET | `/ready` | pública | Readiness |
 
@@ -216,6 +221,40 @@ cubre el invariante 4: la entrada entra una sola vez.
 orden de los `id` coincide con el de confirmación y un escáner que pide `id > cursor` no se
 saltea ninguna.
 
+### Ingreso único con puertas offline (invariante 4)
+
+**En el escáner, sin red:**
+- Verifica el código con `verificarToken`.
+- Rechaza localmente una entrada que ya escaneó.
+- Guarda cada escaneo con un `client_scan_id` (UUID generado en el teléfono).
+
+**Al sincronizar (`POST /v1/escaner/lotes`).** Cada escaneo va en su **propia transacción**:
+
+```sql
+INSERT INTO ingresos (..., resultado) VALUES (..., 'valido') ON CONFLICT DO NOTHING
+```
+
+Un `ON CONFLICT` sin columna cubre **todos** los índices únicos:
+- `UNIQUE (client_scan_id)`: si el lote se reenvía, se devuelve lo que se decidió la primera
+  vez (`repetido: true`) y no se duplica nada.
+- El índice parcial `UNIQUE (entrada_id) WHERE resultado = 'valido'`: si otra puerta ya
+  registró el ingreso válido, este se guarda como `duplicado_offline` y se abre un incidente
+  `doble_ingreso` con los dos ingresos (puerta, dispositivo y hora). **Nada se borra.**
+
+Si dos puertas sincronizan **al mismo tiempo**, el segundo INSERT espera en el índice al
+primero y cae en "duplicado". Siempre queda **exactamente un** ingreso válido.
+
+| Situación | Resultado |
+|---|---|
+| Misma entrada dos veces en el mismo escáner | Rechazo local `ya_usada`, sin red |
+| Misma entrada en dos puertas offline | 1 `valido`, 1 `duplicado_offline` e incidente `doble_ingreso` en el portal |
+| Reenvío del mismo lote | `repetido: true`, sin filas nuevas |
+| Código con firma inválida | Rechazo guardado e incidente `firma_invalida` |
+| Entra una entrada ya reembolsada (el escáner no tenía la revocación) | Ingreso registrado (ocurrió), la entrada sigue reembolsada e incidente `escaner_desincronizado` |
+
+Queda como válido el escaneo que **sincroniza** primero, no necesariamente el que escaneó
+primero. Las dos horas quedan en el incidente para revisión humana.
+
 **Correlación.** Cada respuesta trae `X-Request-Id`, que es el mismo `correlacion_id` de los
 logs JSON. Si el cliente o nginx mandan un `X-Request-Id`, se reutiliza.
 
@@ -305,6 +344,19 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
   - Hay una sola transferencia pendiente por entrada, que se puede cancelar o rechazar.
   - No se puede transferir a uno mismo, ni a quien no es asistente, ni una entrada usada.
 - **Revocaciones:** solo las ve el staff asignado al evento, y el cursor devuelve solo lo nuevo.
+- **Escaneo offline:**
+  - Rechazo local del duplicado en el mismo escáner.
+  - Dos puertas con la misma entrada: 1 válido, 1 duplicado e incidente visible en el portal.
+  - El reenvío de lotes, incluso en paralelo, no duplica nada.
+  - 10 entradas escaneadas en dos puertas que sincronizan **a la vez**: exactamente 10 válidos
+    y 10 incidentes.
+  - Una firma inválida abre un incidente.
+  - Una entrada reembolsada que entra genera `escaner_desincronizado`.
+- **Permisos:**
+  - Staff no asignado: no puede abrir turno.
+  - Dispositivo ajeno: no se puede registrar ni usar para subir lotes.
+  - Un asistente no puede usar el modo escáner (403).
+  - Un organizador ajeno ve 404 en los incidentes de otro evento.
 - **Cancelación y expiración:**
   - Cancelar libera el cupo y es idempotente.
   - Una reserva vencida devuelve el cupo a la zona y a la cuenta.
@@ -369,7 +421,7 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 
 ## Huecos conocidos
 
-- Sin endpoints de eventos (cartelera y disponibilidad), entradas, escáner ni administración.
+- Sin endpoints de eventos (cartelera y disponibilidad), reembolsos, ni la administración de eventos, zonas, fases y staff.
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
