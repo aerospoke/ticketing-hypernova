@@ -26,18 +26,21 @@ export default function Raiz() {
       <Stack
         screenOptions={{
           headerTintColor: color.primario,
-          headerTitleStyle: { color: color.texto },
+          headerTitleStyle: { color: color.texto, fontWeight: '800' },
+          headerStyle: { backgroundColor: color.fondo },
+          headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
           contentStyle: { backgroundColor: color.fondo },
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(asistente)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ title: 'Iniciar sesión', headerBackVisible: false }} />
-        <Stack.Screen name="registro" options={{ title: 'Crear cuenta' }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="registro" options={{ title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' }, headerTintColor: '#fff' }} />
         <Stack.Screen name="evento/[id]" options={{ title: 'Evento' }} />
         <Stack.Screen name="reserva/[id]" options={{ title: 'Tu reserva', headerBackVisible: false }} />
         <Stack.Screen name="entrada/[id]" options={{ title: 'Entrada' }} />
-        <Stack.Screen name="escaner/index" options={{ title: 'Modo escáner', headerBackVisible: false }} />
+        <Stack.Screen name="escaner/index" options={{ headerShown: false }} />
         <Stack.Screen name="escaner/camara" options={{ title: 'Escanear', headerShown: false }} />
       </Stack>
     </>

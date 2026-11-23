@@ -637,7 +637,8 @@ comentarios de cada migración):
 - Íconos: [Icons8](https://icons8.com) (licencia gratuita con atribución). Están en
   `apps/admin/public/iconos/` y `apps/mobile/assets/iconos/`, y el portal enlaza a Icons8
   desde el login.
-- Fotos del carrusel del portal (`apps/admin/public/carrusel/`): se usan solo con fines
-  demostrativos. Los derechos pertenecen a sus autores.
+- Fotos del carrusel y de las portadas (`apps/admin/public/carrusel/` y, reducidas para el
+  teléfono, `apps/mobile/assets/portadas/`): se usan solo con fines demostrativos. Los
+  derechos pertenecen a sus autores. Las dos apps asignan la misma foto a cada evento.
 - Tipografía [Outfit](https://fonts.google.com/specimen/Outfit) (SIL Open Font License),
   empaquetada con `@fontsource-variable/outfit`.
