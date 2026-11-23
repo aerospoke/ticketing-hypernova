@@ -25,9 +25,11 @@ compilar nada nativo.
 
    | Dónde corre la app | `EXPO_PUBLIC_API_URL` |
    |---|---|
-   | Teléfono físico (misma Wi-Fi) | `http://<IP de tu PC en la LAN>:3000` (con `API_BIND=0.0.0.0`) |
-   | Emulador Android | `http://10.0.2.2:3000` |
+   | Teléfono físico (misma Wi-Fi) | `http://<IP de tu Mac en la LAN>:3000` (con `API_BIND=0.0.0.0`) |
+   | Emulador Android | **También la IP de la LAN** (con `API_BIND=0.0.0.0`). Con Docker Desktop, `10.0.2.2` no llega al API publicado por Docker: la petición queda colgada. |
    | Simulador iOS | `http://localhost:3000` |
+
+   La IP de tu Mac se obtiene con `ipconfig getifaddr en0`.
 
 3. Escanea el QR de la terminal con Expo Go (Android) o con la cámara (iOS).
 

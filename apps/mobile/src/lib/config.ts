@@ -1,7 +1,7 @@
 /**
  * URL del backend. Se define al iniciar Expo:
  *   EXPO_PUBLIC_API_URL=http://192.168.1.50:3000 npx expo start
- * - Emulador Android: http://10.0.2.2:3000
+ * - Emulador Android: http://<IP de tu Mac en la LAN>:3000 (con Docker Desktop, 10.0.2.2 no llega)
  * - Simulador iOS:    http://localhost:3000
  * - Teléfono físico:  http://<IP de tu PC en la LAN>:3000 (API levantada con API_BIND=0.0.0.0)
  */

@@ -59,7 +59,9 @@ async function pedir(ruta: string, o: Opciones): Promise<Response> {
       body: o.cuerpo === undefined ? undefined : JSON.stringify(o.cuerpo),
       signal: control.signal,
     });
-  } catch {
+  } catch (e) {
+    // En desarrollo se registra la causa real (DNS, timeout, cleartext bloqueado...).
+    if (__DEV__) console.warn(`fetch ${o.metodo ?? 'GET'} ${API_URL}${ruta} falló:`, String(e));
     throw new ErrorApi(0, 'sin_conexion', 'Sin conexión con el servidor');
   } finally {
     clearTimeout(timer);

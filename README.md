@@ -594,7 +594,8 @@ API_BIND=0.0.0.0 docker compose up          # API visible en la red local
 cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
 ```
 
-- Emulador Android: `http://10.0.2.2:3000`.
+- Emulador Android o teléfono físico: `http://<IP-de-tu-Mac>:3000`, con `API_BIND=0.0.0.0`.
+  Con Docker Desktop, `10.0.2.2` no llega al API. La IP se obtiene con `ipconfig getifaddr en0`.
 - Simulador iOS: `http://localhost:3000`.
 
 ## Decisiones y lo que no se hizo
