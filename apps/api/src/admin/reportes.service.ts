@@ -23,10 +23,16 @@ export class ReportesService {
     const { rows } = await this.pool.query(
       `SELECT z.id, z.nombre, z.aforo, z.vendidas, z.reservadas, z.aforo - z.vendidas - z.reservadas AS disponibles,
               (SELECT f.precio_centesimos FROM fases_precio f WHERE f.zona_id = z.id AND f.desde <= now() AND now() < f.hasta) AS precio_vigente,
-              COALESCE((SELECT sum(c.monto_centesimos) FROM compras c WHERE c.zona_id = z.id AND c.estado <> 'reembolso_automatico'), 0)::bigint AS cobrado,
-              COALESCE((SELECT sum(r.monto_centesimos) FROM reembolsos r JOIN compras c ON c.id = r.compra_id
-                         WHERE c.zona_id = z.id AND r.entrada_id IS NOT NULL), 0)::bigint AS reembolsado,
-              (SELECT count(*) FROM entradas e WHERE e.zona_id = z.id AND e.estado = 'usada')::int AS ingresaron
+              -- c.evento_id = z.evento_id: sin la primera columna del índice (evento_id, zona_id)
+              -- PostgreSQL no lo puede usar y recorre todas las compras por cada zona.
+              COALESCE((SELECT sum(c.monto_centesimos) FROM compras c
+                         WHERE c.evento_id = z.evento_id AND c.zona_id = z.id AND c.estado <> 'reembolso_automatico'), 0)::bigint AS cobrado,
+              -- Reembolsado = precio de las entradas reembolsadas (1:1 con reembolsos.entrada_id,
+              -- mismo monto). Así usa entradas_evento_idx (evento_id, zona_id, estado) en vez de
+              -- recorrer la tabla reembolsos por cada zona.
+              COALESCE((SELECT sum(e.precio_centesimos) FROM entradas e
+                         WHERE e.evento_id = z.evento_id AND e.zona_id = z.id AND e.estado = 'reembolsada'), 0)::bigint AS reembolsado,
+              (SELECT count(*) FROM entradas e WHERE e.evento_id = z.evento_id AND e.zona_id = z.id AND e.estado = 'usada')::int AS ingresaron
          FROM zonas z WHERE z.evento_id = $1 ORDER BY z.id`,
       [eventoId],
     );
@@ -91,15 +97,30 @@ export class ReportesService {
   async entradas(s: Sesion, eventoId: string, q: string | undefined, cursor: string | undefined) {
     await exigirAccesoEvento(this.pool, s, eventoId, { staff: false });
     const patron = q ? `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%` : null;
+    // Con texto: 1) usuarios cuyo correo o nombre coincide (índices trigrama de 0005),
+    // 2) sus entradas en este evento como comprador o titular (índices por usuario).
+    // Así se evita recorrer todas las entradas del evento uniendo usuarios fila por fila.
     const { rows } = await this.pool.query(
-      `SELECT e.id, e.estado, e.version, z.nombre AS zona, e.precio_centesimos, e.emitida_en, e.usada_en,
+      `WITH coinciden AS (
+         SELECT id FROM usuarios WHERE $2::text IS NOT NULL AND (email ILIKE $2 OR nombre ILIKE $2)
+       )
+       SELECT e.id, e.estado, e.version, z.nombre AS zona, e.precio_centesimos, e.emitida_en, e.usada_en,
               c.email AS comprador_email, c.nombre AS comprador, t.email AS titular_email, t.nombre AS titular
          FROM entradas e
          JOIN zonas z ON z.id = e.zona_id
          JOIN usuarios c ON c.id = e.comprador_id
          JOIN usuarios t ON t.id = e.titular_id
         WHERE e.evento_id = $1
-          AND ($2::text IS NULL OR c.email ILIKE $2 OR c.nombre ILIKE $2 OR t.email ILIKE $2 OR t.nombre ILIKE $2 OR e.id::text = $3)
+          -- UNION ALL en vez de OR: cada rama usa su índice (comprador / titular / id).
+          AND ($2::text IS NULL OR e.id IN (
+                SELECT x.id FROM entradas x JOIN coinciden u ON x.comprador_id = u.id
+                UNION ALL
+                SELECT x.id FROM entradas x JOIN coinciden u ON x.titular_id = u.id
+                UNION ALL
+                -- Búsqueda por número de entrada. El cast va dentro de un CASE: en un
+                -- "SELECT $3::bigint WHERE ..." el planificador evalúa el cast antes del
+                -- WHERE (constant folding) y fallaría al buscar un correo.
+                SELECT n FROM (SELECT CASE WHEN $3::text ~ '^[0-9]{1,18}$' THEN $3::text::bigint END AS n) k WHERE n IS NOT NULL))
           AND ($4::bigint IS NULL OR e.id < $4)
         ORDER BY e.id DESC
         LIMIT $5`,

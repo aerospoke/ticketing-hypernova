@@ -62,6 +62,8 @@ it('buscar entradas por correo del comprador; organizador ajeno no puede', async
   const r = await get(istmo, `/eventos/${evento}/entradas?q=${encodeURIComponent(a.email)}`).expect(200);
   expect(r.body.items.map((e: { id: string }) => e.id)).toEqual([ea]);
   expect(r.body.items[0]).toMatchObject({ comprador_email: a.email, estado: 'pagada' });
+  // Por número de entrada (y un correo nunca se confunde con un número).
+  expect((await get(istmo, `/eventos/${evento}/entradas?q=${ea}`).expect(200)).body.items.map((e: { id: string }) => e.id)).toEqual([ea]);
   // Los comodines de LIKE del usuario se escapan: "%" no devuelve todo.
   expect((await get(istmo, `/eventos/${evento}/entradas?q=%25`).expect(200)).body.items).toHaveLength(0);
   await get(canal, `/eventos/${evento}/entradas?q=a`).expect(404);
