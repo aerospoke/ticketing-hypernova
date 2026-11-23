@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { exigirAccesoEvento } from '../common/acceso';
 import { exigirClave, IdempotenciaService, responder } from '../compra/idempotencia.service';
 import { PG_POOL } from '../db/db.module';
 import { ReembolsosService } from '../entradas/reembolsos.service';
+import { ReportesService } from './reportes.service';
 
 const Id = z.string().regex(/^[1-9]\d{0,17}$/, 'id inválido');
 const Filtro = z.object({
@@ -17,6 +18,9 @@ const Filtro = z.object({
 const PAGINA = 50;
 // Motivo obligatorio: queda en el reembolso y en la auditoría.
 const ConMotivo = z.object({ motivo: z.string().trim().min(3).max(500) });
+const Busqueda = z.object({ q: z.string().trim().min(1).max(100).optional(), cursor: Id.optional() });
+const Pagina = z.object({ cursor: Id.optional() });
+const Nota = z.object({ nota: z.string().trim().min(3).max(500) });
 
 /**
  * Portal de administración. Cada ruta valida en el servidor que el evento sea del
@@ -29,7 +33,38 @@ export class AdminController {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly reembolsos: ReembolsosService,
     private readonly idem: IdempotenciaService,
+    private readonly reportes: ReportesService,
   ) {}
+
+  /** Ventas por zona: vendidas, reservadas, disponibles e ingresos (tiempo casi real). */
+  @Get('eventos/:id/ventas')
+  ventas(@SesionActual() s: Sesion, @Param('id', { schema: Id }) id: string) {
+    return this.reportes.ventas(s, id);
+  }
+
+  /** Accesos por puerta y por hora, aforo dentro del recinto y dispositivos con su última sync. */
+  @Get('eventos/:id/accesos')
+  accesos(@SesionActual() s: Sesion, @Param('id', { schema: Id }) id: string) {
+    return this.reportes.accesos(s, id);
+  }
+
+  /** Buscar entradas por comprador o titular (correo o nombre) o por número de entrada. */
+  @Get('eventos/:id/entradas')
+  entradas(@SesionActual() s: Sesion, @Param('id', { schema: Id }) id: string, @Query({ schema: Busqueda }) q: z.infer<typeof Busqueda>) {
+    return this.reportes.entradas(s, id, q.q, q.cursor);
+  }
+
+  /** Registro de auditoría (inmutable). Admin: todo. Organizador: sus propias acciones. */
+  @Get('auditoria')
+  auditoria(@SesionActual() s: Sesion, @Query({ schema: Pagina }) q: z.infer<typeof Pagina>) {
+    return this.reportes.auditoria(s, q.cursor);
+  }
+
+  @Post('incidentes/:id/resolver')
+  @HttpCode(200)
+  resolver(@SesionActual() s: Sesion, @Param('id', { schema: Id }) id: string, @Body({ schema: Nota }) b: z.infer<typeof Nota>) {
+    return this.reportes.resolverIncidente(s, id, b.nota);
+  }
 
   /** Reembolso administrativo (con motivo y autor). Sin fecha límite; nunca si está usada. */
   @Post('entradas/:id/reembolso')
