@@ -126,6 +126,7 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/transferencias/:id/rechazar` | sesión (destinatario) | Rechaza la transferencia |
 | POST | `/v1/transferencias/:id/cancelar` | sesión (emisor) | Cancela una transferencia pendiente |
 | GET | `/v1/escaner/llave` | pública | Llave pública Ed25519 del servidor, para verificar sin red |
+| GET | `/v1/escaner/eventos` | staff | Eventos asignados, con puertas y zonas, para iniciar turno |
 | GET | `/v1/escaner/eventos/:id/revocaciones?desde=` | staff asignado, organizador dueño o admin | Revocaciones incrementales por cursor |
 | POST | `/v1/escaner/dispositivos` | staff | Registro del dispositivo `{id (uuid generado en el teléfono), nombre, plataforma}` |
 | POST | `/v1/escaner/turnos` | staff asignado | Inicio de turno `{evento_id, puerta_id, dispositivo_id}`: queda registrado quién escanea, dónde y con qué equipo |
@@ -498,13 +499,17 @@ restricción.
 
 ## App móvil
 
-Existe la base Expo en `apps/mobile` y se ejecuta **fuera** de Docker. Todavía no consume la
-API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API_URL`:
+`apps/mobile` (Expo SDK 58) corre **fuera** de Docker, con Expo Go: no hace falta compilar
+nada nativo. Instrucciones exactas, pantallas y el guion de la demo de dos puertas offline en
+[apps/mobile/README.md](apps/mobile/README.md).
 
-- Emulador Android: `http://10.0.2.2:3000`
-- Simulador iOS: `http://localhost:3000`
-- Teléfono físico: levantar la API con `API_BIND=0.0.0.0 docker compose up` y usar
-  `http://<IP-de-tu-PC-en-la-LAN>:3000`.
+```bash
+API_BIND=0.0.0.0 docker compose up          # API visible en la red local
+cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
+```
+
+- Emulador Android: `http://10.0.2.2:3000`.
+- Simulador iOS: `http://localhost:3000`.
 
 ## Huecos conocidos
 
@@ -516,4 +521,4 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
   las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
   Expo de versión mayor, así que se dejó documentado.
 - Portal: por ahora es una página que solo muestra el estado de la API.
-- App móvil: plantilla de Expo sin integrar.
+- App móvil: sin build instalable (se usa Expo Go) y sin tests e2e de interfaz (Detox o Maestro son bonus).

@@ -1,56 +1,117 @@
-# Welcome to your Expo app 👋
+# App móvil: billetera del asistente y escáner del staff
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo SDK 58 (React Native 0.88, Expo Router), en TypeScript. **Una sola app**: según el rol
+con el que inicies sesión, muestra la billetera (asistente) o el escáner (staff).
 
-## Get started
+## Cómo ejecutarla
 
-1. Install dependencies
+Solo hace falta **Expo Go** en el teléfono o el emulador. Todos los módulos nativos que usa
+(cámara, SQLite, SecureStore, crypto, SVG) vienen incluidos en Expo Go, así que no hace falta
+compilar nada nativo.
+
+1. Levanta el backend. Si vas a usar un teléfono físico, publica la API en la red local:
 
    ```bash
-   npm install
+   API_BIND=0.0.0.0 docker compose up
    ```
 
-2. Start the app
+2. Arranca la app apuntando a la API (Node 24, desde la raíz del repo):
 
    ```bash
-   npx expo start
+   npm ci
+   cd apps/mobile
+   EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+   | Dónde corre la app | `EXPO_PUBLIC_API_URL` |
+   |---|---|
+   | Teléfono físico (misma Wi-Fi) | `http://<IP de tu PC en la LAN>:3000` (con `API_BIND=0.0.0.0`) |
+   | Emulador Android | `http://10.0.2.2:3000` |
+   | Simulador iOS | `http://localhost:3000` |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+3. Escanea el QR de la terminal con Expo Go (Android) o con la cámara (iOS).
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Credenciales de prueba: ver el [README principal](../../README.md#acceso-de-prueba). Por
+ejemplo, `asistente1@correo.test` / `Asistente2026!` o `staff1@ticketing.test` / `Staff2026!`.
 
-## Get a fresh project
+## Asistente
 
-When you're ready, run:
+| Pantalla | Qué hace |
+|---|---|
+| Cartelera | Eventos con estado, precio desde y disponibles. Lista virtualizada con paginación por cursor y *pull to refresh*. |
+| Evento | Zonas con precio vigente y cuántas quedan. Se elige zona y cantidad, y se reserva. |
+| Reserva | **Contador** del tiempo restante, pagar o cancelar. Un pago tardío se resuelve según la política del servidor. |
+| Mis entradas | Billetera. **Sin red** muestra la última copia guardada. |
+| Entrada | **QR rotativo cada 15 s**, generado en el teléfono. Permite transferir por correo y pedir reembolso. |
+| Cuenta | Transferencias (aceptar, rechazar o cancelar), historial de compras y reembolsos, cerrar sesión. |
+
+**Cómo funciona el QR sin red:**
+- La primera vez, el teléfono genera un par Ed25519. La llave privada queda en **SecureStore**
+  (Keychain o Keystore, solo en este dispositivo) y nunca se envía.
+- Con red, la app pide para cada entrada la **credencial firmada por el servidor** para la
+  llave pública de este teléfono, y la guarda en SQLite.
+- Cada 15 s, el teléfono firma `credencial + hora` y lo muestra como QR. No necesita red.
+- El token se recalcula solo cuando cambia la ventana de 15 s, no en cada render
+  (`useCodigoRotativo`).
+
+**Idempotencia desde el cliente:** la `Idempotency-Key` se genera **una vez por intención**
+(reservar, pagar, reembolsar). Un doble toque o un reintento por timeout reusan la misma clave,
+y el servidor devuelve el mismo resultado.
+
+## Staff (modo escáner)
+
+1. **Iniciar turno.** Con red: elegir evento y puerta. Se registran el dispositivo y el turno,
+   se baja la llave pública del servidor y se baja la lista de revocaciones.
+2. **Escanear.** Puede ser **en modo avión**. Cada lectura se verifica localmente con
+   `verificarToken` de `@ticketing/shared`, la misma función que prueba el backend.
+3. **Respuesta inmediata a pantalla completa:**
+
+   | Resultado | Color |
+   |---|---|
+   | **VÁLIDA** | verde |
+   | **YA USADA** (este escáner ya la dejó pasar) | rojo |
+   | **REVOCADA** (transferida, reembolsada o anulada) | rojo |
+   | **CÓDIGO EXPIRADO** (captura vieja) | ámbar |
+   | **OTRO EVENTO** o **ZONA EQUIVOCADA** | ámbar |
+   | **CÓDIGO INVÁLIDO** (firma falsa) | rojo |
+
+4. **Almacenamiento local.** Cada escaneo se guarda en SQLite con su `client_scan_id`. Hay un
+   índice parcial para "¿ya entró?", así la respuesta sigue siendo instantánea con miles de
+   escaneos.
+5. **Sincronización.** Arriba se ve el **contador de pendientes**. La app sincroniza sola cada
+   15 s si hay pendientes, y también con el botón **Sincronizar**: sube los escaneos en lotes
+   de 500 y baja las revocaciones nuevas desde el cursor. Si la app se cierra a mitad, reenviar
+   es seguro.
+
+## Demo: dos puertas offline (caso 6 del enunciado)
+
+1. Dos teléfonos con la app: uno con `staff1@ticketing.test` y otro con `staff4@ticketing.test`.
+   Los dos son staff de `org.istmo`.
+2. Con red, en el portal o la API, asignar a ambos al mismo evento con dos puertas. Cada uno
+   inicia turno en una puerta distinta.
+3. Activar el **modo avión** en los dos escáneres.
+4. Un tercer teléfono, el del asistente, muestra su entrada. Los dos escáneres la leen: los
+   dos dicen **VÁLIDA**, porque ninguno sabe del otro.
+5. Desactivar el modo avión y pulsar **Sincronizar** en los dos. El segundo en sincronizar
+   marca ese escaneo como **DOBLE INGRESO**, y el incidente aparece en el portal
+   (`GET /v1/admin/eventos/:id/incidentes`).
+
+## Verificación
 
 ```bash
-npm run reset-project
+cd apps/mobile
+npx tsc --noEmit                                                  # tipos
+npx expo export --platform android --platform ios --output-dir /tmp/expo-export   # empaqueta con Metro
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+La lógica criptográfica (generar y verificar el QR) está cubierta por los e2e del backend,
+que usan las mismas funciones de `@ticketing/shared`. La app en sí todavía no tiene tests
+automatizados; Detox o Maestro quedan como bonus.
 
-### Other setup steps
+## Limitaciones conocidas
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Hecha y probada para Expo Go y builds de desarrollo. Un build de release para Android
+  contra una API `http://` necesita habilitar el tráfico sin TLS
+  (`expo-build-properties` → `usesCleartextTraffic`), o servir la API por HTTPS.
+- Si el reloj del teléfono del asistente y el del escáner difieren en más de 30 s, el código
+  se rechaza como expirado. Es el costo de la ventana corta contra capturas de pantalla.

@@ -38,6 +38,13 @@ Revisión humana: `pendiente` hasta que una persona revise el código **y** la e
 | T5 | Mutación en permisos | ✅ | Quitar `exigirAccesoEvento` de `actualizarEvento`. Después restaurar. | Falla el test del caso 8. Restaurado: 49/49. | Prueba de mutación manual | pendiente | — |
 | T3 | Mutación en el QR | ✅ | Reemplazar el chequeo de ventana por `if (false)` en `qr.ts` y correr los e2e. Después restaurar. | Falla 1 test (captura de 1 minuto). Restaurado: 25/25. | Prueba de mutación manual | pendiente | — |
 
+## App móvil
+
+| # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
+|---|---|---|---|---|---|---|---|
+| M1 | La app compila y empaqueta | ✅ | `cd apps/mobile && npx tsc --noEmit && npx expo export --platform android --platform ios` | Tipos sin errores. Bundles Hermes: iOS 3.7 MB y Android 4 MB. Metro resuelve `@ticketing/shared` desde el fuente y `@noble/curves`. | Toda la app | pendiente | Probar en un dispositivo real |
+| M2 | Flujos en dispositivo real (compra, QR offline, transferencia, escáner en modo avión, dos puertas) | ⬜ | Guion en `apps/mobile/README.md` | — | — | pendiente | **Requiere una persona con teléfonos**: grabar el video |
+
 ## Casos del enunciado ("Cómo se va a probar tu entrega")
 
 | # | Caso | Estado | Comando / demo | Resultado observado | Aporte IA | Revisión humana | Próxima acción |
