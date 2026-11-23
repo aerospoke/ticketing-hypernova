@@ -3,15 +3,51 @@
 Plataforma de venta de entradas con aforo limitado y control de acceso offline.
 Prueba técnica de Hypernova Labs.
 
-> **Video del recorrido:** pendiente.
+> **🎥 Video del recorrido:** _(pendiente: enlace no listado)_
+> **🎥 Video de dos escáneres offline detectando el doble ingreso:** _(pendiente)_
 
-## Estado
+## Resumen de la entrega
 
-Este primer corte deja lista la base: `docker compose up` levanta la base de datos, aplica
-las migraciones, carga el dataset oficial y sirve la API y el portal. El esquema ya
-contiene las restricciones de los cuatro invariantes. Los flujos de negocio (compra, pago,
-entradas, escaneo) **aún no tienen endpoints**. Ver [Huecos conocidos](#huecos-conocidos)
-y el avance caso por caso en [docs/delivery.md](docs/delivery.md).
+```bash
+docker compose up                  # base + migraciones + semilla + API + portal, sin pasos manuales
+./load-tests/correr.sh             # 200 compradores contra 50 entradas: exactamente 50 vendidas
+./apps/api/test/correr-e2e.sh      # 55 tests e2e contra PostgreSQL real (Node 24)
+```
+
+| Caso del enunciado | Cómo se garantiza | Evidencia |
+|---|---|---|
+| 1. Carrera por el último cupo | `UPDATE zonas ... WHERE vendidas + reservadas + n <= aforo` y `CHECK` en la tabla | k6: **50 de 50** en 3 de 3 corridas, verificado en PostgreSQL ([load-tests](load-tests/README.md)) |
+| 2. Doble toque | `Idempotency-Key` en la misma transacción, más `UNIQUE (reserva_id)` | e2e: 5 pagos simultáneos dan 1 compra y 1 cobro |
+| 3. Reserva vencida | Vigencia en la consulta y barrido con `FOR UPDATE SKIP LOCKED` | e2e, y prueba con la API caída durante el vencimiento |
+| 4. Captura de pantalla | Ed25519: credencial firmada por el servidor más firma del teléfono cada 15 s; ventana de 30 s | e2e: una captura de 60 s se rechaza como `expirado` |
+| 5. Transferencia | `version` y revocaciones incrementales con cursor | e2e: el código anterior queda `revocada` |
+| 6. Dos puertas offline | `client_scan_id` UNIQUE e índice único parcial de ingreso `valido` | e2e: 1 válido, 1 `duplicado_offline` e incidente en el portal |
+| 7. Reembolso tras uso | `UPDATE ... WHERE estado IN ('pagada','transferida')` | e2e: `409 entrada_usada` |
+| 8. Organizador ajeno | Acceso por evento verificado en el servidor (404, igual que inexistente) | e2e: 8 operaciones dan 404 y nada cambia |
+| 9. Precio manipulado | El esquema descarta los campos del cliente; precio de la fase congelado al reservar | e2e |
+
+Avance detallado, con comandos y salidas observadas: [docs/delivery.md](docs/delivery.md).
+Las pruebas de mutación (romper el código a propósito y ver que los tests fallan) están en
+[Pruebas automatizadas](#pruebas-automatizadas).
+
+**Índice:**
+- [Arranque](#arranque-desde-un-clon-limpio)
+- [URLs](#urls)
+- [Variables](#variables-de-entorno)
+- [Acceso de prueba](#acceso-de-prueba)
+- [Endpoints](#endpoints)
+- [Compra e idempotencia](#flujo-de-compra-e-idempotencia)
+- [Disponibilidad](#disponibilidad-bajo-mucho-tráfico)
+- [Reembolsos](#reembolsos-y-anulaciones)
+- [QR](#código-qr-rotativo-invariante-3)
+- [Escaneo offline](#ingreso-único-con-puertas-offline-invariante-4)
+- [Datos de prueba](#datos-de-prueba)
+- [Pruebas](#pruebas-automatizadas)
+- [Rendimiento](#rendimiento)
+- [Arquitectura](#arquitectura-resumen)
+- [Portal](#portal-web)
+- [App móvil](#app-móvil)
+- [Decisiones y omisiones](#decisiones-y-lo-que-no-se-hizo)
 
 ## Arranque desde un clon limpio
 
@@ -356,7 +392,7 @@ falla a mitad, no deja nada a medias y se reintenta en el siguiente arranque.
 ```bash
 # Servicios y salud
 docker compose ps
-curl -s localhost:3000/ready        # {"estado":"listo","esquema":"0004"}
+curl -s localhost:3000/ready        # {"estado":"listo","esquema":"0005"}
 curl -s localhost:8080/ready        # lo mismo, pasando por el proxy de nginx
 
 # Línea base de la prueba de concurrencia (evento 4, zona 8)
@@ -478,13 +514,29 @@ capas funcionan por separado.
 Solo requiere Docker. Resultado: **exactamente 50 vendidas** en 3 de 3 corridas, verificado
 en PostgreSQL. Detalle, resultados y explicación en [load-tests/README.md](load-tests/README.md).
 
+## Rendimiento
+
+- **Disponibilidad:** proyección en `zonas` y micro-cache de 1 s. Ver
+  [Disponibilidad](#disponibilidad-bajo-mucho-tráfico).
+- **Índices justificados, uno por uno, y `EXPLAIN (ANALYZE)` de las consultas más costosas,
+  medidos a escala** (200 000 usuarios y 300 000 compras):
+  [docs/rendimiento/README.md](docs/rendimiento/README.md). Resultados:
+  - búsqueda por comprador: de 181 ms a **8,4 ms** (índices trigrama, migración `0005`);
+  - reporte de ventas: de 100 ms a **64 ms**;
+  - reservar: **0,2 ms**.
+- **Paginación por cursor** en todos los listados que crecen.
+- **App:** listas virtualizadas (`FlatList`) y QR que se recalcula solo cuando cambia la
+  ventana de 15 s. El escáner usa SQLite con índices parciales para miles de escaneos.
+
 ## Arquitectura (resumen)
 
 - **Monorepo** con npm workspaces y un solo lockfile, en Node 24 LTS:
   - `apps/api`: NestJS con `pg` directo. Las rutas críticas usan SQL explícito.
   - `apps/admin`: React + Vite servido por nginx.
   - `apps/mobile`: Expo (billetera y escáner).
-  - `packages/shared`: tipos compartidos.
+  - `packages/shared`: formato, generación y **verificación offline del QR**. La misma función corre en la API, en los tests y en la app.
+- **Capas en la API:** los controllers solo validan (zod) y delegan; la lógica vive en los
+  servicios; el SQL crítico es explícito. Errores con forma única y logs JSON con correlación.
 - **Dos roles de base de datos:**
   - `ticketing_owner` ejecuta migraciones y semilla.
   - `ticketing_app` es el rol de la API: no puede crear tablas, no puede editar ni borrar
@@ -494,7 +546,7 @@ en PostgreSQL. Detalle, resultados y explicación en [load-tests/README.md](load
 
 Más detalle en [docs/agent-handoff.md](docs/agent-handoff.md).
 
-### Garantías que ya están en el esquema
+### Garantías en el esquema
 
 | Invariante | Mecanismo en la base de datos |
 |---|---|
@@ -545,6 +597,29 @@ cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
 - Emulador Android: `http://10.0.2.2:3000`.
 - Simulador iOS: `http://localhost:3000`.
 
+## Decisiones y lo que no se hizo
+
+**Decisiones de diseño** (el porqué completo está en [AGENTS.md](AGENTS.md) y en los
+comentarios de cada migración):
+- **Ed25519 y no HMAC.** El escáner verifica sin red, así que no puede tener la llave que
+  firma.
+- **Sin Redis.** Postgres resuelve la concurrencia (UPDATE condicional, UNIQUE, `SKIP LOCKED`).
+  El rate limiting es en memoria, porque hay una sola instancia. Con varias instancias, el
+  contador del rate limit iría a Redis.
+- **Pago tardío.** Si hay cupo se emite; si no, `reembolso_automatico`.
+- **Doble ingreso offline.** Queda válido el escaneo que sincroniza primero; los dos quedan
+  registrados en el incidente.
+
+**Omitido a propósito** (el enunciado pide priorizar los invariantes):
+
+| Omitido | Motivo y estado |
+|---|---|
+| Compra como invitado y fila virtual | Diseñados y aprobados (ver [AGENTS.md](AGENTS.md#compra-con-cuenta-o-como-invitado-bonus-después-de-los-invariantes)), no implementados por tiempo. La fila virtual es un bonus del enunciado. |
+| Detector de "picos sospechosos de compra" | El tipo de incidente existe en la base y en el portal; falta el proceso que lo genere. |
+| Lista de espera, asientos numerados, wallets, notificaciones, despliegue en la nube | Bonus. |
+| CI en GitHub Actions y OpenTelemetry | Bonus. Los logs ya son JSON con `correlacion_id`. |
+| Tests e2e de la app (Detox o Maestro) | Bonus. La criptografía de la app está cubierta por los e2e del backend (misma función). |
+
 ## Huecos conocidos
 
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
@@ -553,5 +628,5 @@ cd apps/mobile && EXPO_PUBLIC_API_URL=http://<IP-de-tu-PC>:3000 npx expo start
 - `npm audit`: la API no tiene vulnerabilidades. Hay 3 moderadas en `minimatch`, que solo usan
   las herramientas de build de Expo y no llegan a la API. La corrección que propone npm baja
   Expo de versión mayor, así que se dejó documentado.
-- Incidente "pico sospechoso de compra": el tipo existe en la base y en el portal, pero todavía no hay un detector que lo genere.
-- App móvil: sin build instalable (se usa Expo Go) y sin tests e2e de interfaz (Detox o Maestro son bonus).
+- App móvil: sin build instalable; se ejecuta con Expo Go siguiendo las instrucciones exactas de [apps/mobile/README.md](apps/mobile/README.md).
+- Sesión del portal: el refresh token vive en `sessionStorage`. Lo ideal es una cookie `httpOnly`.

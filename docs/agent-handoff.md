@@ -8,7 +8,7 @@ cerrar cada corte.
 ```
 apps/
   api/                 NestJS 12 (CommonJS), pg directo, Jest
-    migrations/        0001..0004 en SQL plano (no se editan una vez aplicadas)
+    migrations/        0001..0005 en SQL plano (no se editan una vez aplicadas)
     seed/              datos-prueba-ticketing.json (dataset oficial, no se modifica)
     src/db/            config.ts (_FILE), migrate.ts (runner), seed.ts, db.module.ts (pool)
     src/health/        /health y /ready
@@ -30,7 +30,7 @@ packages/shared/       qr.ts: formato, generación y verificación OFFLINE del c
                        (npm run build -w @ticketing/shared; el Dockerfile y correr-e2e.sh ya lo hacen).
 load-tests/            k6 de 200 contra 50 (correr.sh) y resultados
 infra/secrets/         init-secrets.mjs: genera secretos en volúmenes Docker
-docs/                  este archivo y delivery.md
+docs/                  este archivo, delivery.md y rendimiento/ (EXPLAIN a escala: medir.sh)
 .claude/skills/        verify-ticket-sales, verify-offline-admission
 ```
 
@@ -64,7 +64,7 @@ CREATE en `public`. Sus permisos:
 - Aplica cada migración en su propia transacción, junto con su fila en `schema_migrations`.
 - Se detiene si encuentra un checksum distinto, una versión duplicada o una migración
   aplicada que ya no existe en disco.
-- Para cambiar el esquema: crear `0005_*.sql`. Nunca editar una migración aplicada.
+- Para cambiar el esquema: crear `0006_*.sql`. Nunca editar una migración aplicada.
 
 ## Decisiones de la semilla
 
