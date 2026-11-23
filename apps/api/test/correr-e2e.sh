@@ -35,5 +35,8 @@ export PGHOST=127.0.0.1 PGPORT=$DB_PORT PGDATABASE=ticketing
 DB_APP_PASSWORD=$(docker compose run --rm --no-deps -T --entrypoint cat migrate /run/secrets-gen/db_app_password 2>/dev/null)
 export DB_APP_PASSWORD
 
+echo "== Build del paquete compartido"
+npm run build --workspace @ticketing/shared >/dev/null
+
 echo "== Tests e2e"
 npm run test:e2e --workspace api -- "$@"
