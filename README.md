@@ -110,6 +110,8 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/auth/refresh` | pública | Canjea el refresh **una sola vez** por un par nuevo (rotación) |
 | POST | `/v1/auth/logout` | pública | Cierra la sesión: el refresh y **también el access vigente** dejan de servir |
 | GET | `/v1/me` | sesión | Perfil del usuario autenticado |
+| GET | `/v1/eventos?cursor=` | pública | Cartelera: eventos publicados que no terminaron, con estado de venta, precio desde y disponibles |
+| GET | `/v1/eventos/:id` | pública | Detalle con disponibilidad por zona y fase vigente (caché de a lo sumo ~1 s) |
 | POST | `/v1/reservas` | sesión + `Idempotency-Key` | Reserva `{zona_id, cantidad}`: retiene cupo y congela el precio de la fase vigente. Cualquier monto que mande el cliente se ignora. |
 | GET | `/v1/reservas/:id` | sesión (dueño) | Estado y `segundos_restantes` para el contador |
 | POST | `/v1/reservas/:id/cancelar` | sesión + `Idempotency-Key` | Libera el cupo. Cancelar dos veces no es error. |
@@ -130,6 +132,12 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/escaner/turnos/:id/cerrar` | staff | Fin de turno |
 | POST | `/v1/escaner/lotes` | staff (dueño del dispositivo) | Sube hasta 500 escaneos hechos sin red. Reenviar el lote es seguro. |
 | GET | `/v1/admin/eventos/:id/incidentes` | organizador dueño o admin | Incidentes del evento (doble ingreso, firma inválida, escáner desincronizado) |
+| GET / POST | `/v1/admin/eventos` | organizador (los suyos) o admin | Listar con resumen de ventas / crear (en `borrador` por defecto) |
+| GET / PATCH | `/v1/admin/eventos/:id` | organizador dueño o admin | Detalle (zonas, fases, puertas, staff) / editar |
+| POST | `/v1/admin/eventos/:id/zonas` · `PATCH /v1/admin/zonas/:id` | organizador dueño o admin | Zonas con aforo |
+| POST | `/v1/admin/zonas/:id/fases` · `PATCH /v1/admin/fases/:id` | organizador dueño o admin | Fases de precio (preventa, general, taquilla) |
+| POST | `/v1/admin/eventos/:id/puertas` | organizador dueño o admin | Puertas |
+| PUT / DELETE | `/v1/admin/eventos/:id/staff/:staffId` | organizador dueño o admin | Asignar o quitar staff (solo staff del mismo organizador) |
 | POST | `/v1/admin/entradas/:id/reembolso` | organizador dueño o admin + `Idempotency-Key` | Reembolso `{motivo}`, sin fecha límite. Queda en la auditoría. |
 | POST | `/v1/admin/entradas/:id/anular` | organizador dueño o admin + `Idempotency-Key` | Anulación sin devolución `{motivo}` (por ejemplo, fraude). Queda en la auditoría. |
 | GET | `/health` | pública | Liveness |
@@ -185,6 +193,36 @@ POST /reservas ──► reserva activa (10 min) ──► POST /reservas/:id/pa
   - Si ya pasó, se intenta recuperar el cupo con los mismos UPDATE condicionales. Si hay
     cupo, se emite. Si no, la compra queda `reembolso_automatico`: el cobro se registra y se
     devuelve en `reembolsos` con autor "sistema", y no se emiten entradas.
+
+### Disponibilidad bajo mucho tráfico
+
+La consulta de disponibilidad aguanta mucho más que la compra por dos razones:
+
+1. **No cuenta filas.** `zonas.vendidas` y `zonas.reservadas` son una proyección que cada
+   reserva, pago, cancelación, expiración y reembolso mantiene **en su misma transacción**.
+   Leer la disponibilidad es leer 1 fila por zona.
+2. **Micro-cache de 1 s** en memoria por evento (`CACHE_DISPONIBILIDAD_MS`), más
+   `Cache-Control: public, max-age=1`. Se cachea la *promesa*: si miles de clientes piden el
+   mismo evento en el mismo instante, la base recibe **una** consulta.
+
+**¿Cuánto puede mentir?** Como máximo ~1 s, y está probado en los e2e. Además es solo
+informativo: si alguien ve "quedan 2" y ya no quedan, su reserva recibe `409 cupo_agotado`
+del UPDATE atómico. Nunca hay sobreventa por mirar un dato viejo.
+
+### Administración: reglas y permisos
+
+- **Permisos.** Toda ruta de `/v1/admin` verifica en el servidor que el evento sea del
+  organizador. Para zonas y fases, primero se resuelve a qué evento pertenecen. Un evento
+  ajeno responde **404, igual que uno inexistente**: probar ids no revela qué existe.
+- **Reglas.** Las impone la base y se traducen a errores legibles:
+  - bajar el aforo por debajo de lo vendido más lo reservado: `CHECK`, `409 aforo_menor_que_ocupado`;
+  - fases que se solapan: `EXCLUDE`, `409 fases_solapadas`;
+  - nombres duplicados: `UNIQUE`, `409`;
+  - fechas inconsistentes: `CHECK`, `400 fechas_invalidas`;
+  - quitar a un staff con turnos: `FK`, `409 staff_con_turnos`.
+- **Precio congelado.** Cambiar el precio de una fase no afecta las reservas ya hechas.
+- **Auditoría.** Cada cambio queda registrado en `auditoria`, en la misma transacción, con el
+  valor anterior y el nuevo.
 
 ### Reembolsos y anulaciones
 
@@ -387,6 +425,17 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
   - Una compra de 2 entradas queda `reembolsada` recién cuando se reembolsan las dos.
   - Reembolso y anulación administrativos quedan con motivo y autor en la auditoría.
   - Organizador ajeno: 404. Asistente en una ruta de admin: 403.
+- **Cartelera:**
+  - Muestra la disponibilidad por zona y la fase vigente; un borrador no es visible.
+  - El cursor recorre todo sin repetidos.
+  - La caché devuelve el dato viejo dentro del segundo y el dato real después.
+- **Administración:**
+  - Un borrador se publica y se compra, y todo queda auditado.
+  - Las reglas de la base llegan como 409/400 claros.
+  - El precio queda congelado al reservar.
+  - **Caso 8:** el organizador ajeno recibe 404 en 8 operaciones (ver, editar evento, zonas,
+    fases, puertas y staff) y nada cambia en la base.
+  - Asistente: 403. Admin: acceso total.
 - **Permisos:**
   - Staff no asignado: no puede abrir turno.
   - Dispositivo ajeno: no se puede registrar ni usar para subir lotes.
@@ -403,6 +452,7 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
 - **QR:** sin el chequeo de la ventana de 30 s, falla el test de la captura de pantalla.
 - **Reembolso:** sin `AND estado IN ('pagada','transferida')`, fallan el test de la entrada
   usada y el del doble reembolso.
+- **Organizador ajeno:** sin el chequeo de dueño al editar un evento, falla el test del caso 8.
 
 En el caso del aforo, además, **no hubo sobreventa**: el `CHECK` de la tabla rechazó las escrituras (la API respondió 500 en lugar de 409). Las dos
 capas funcionan por separado.
@@ -458,7 +508,7 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 
 ## Huecos conocidos
 
-- Sin endpoints de eventos (cartelera y disponibilidad), ni la administración de eventos, zonas, fases y staff.
+- Reportes del portal pendientes: ventas e ingresos por zona, accesos por puerta y hora, dispositivos, auditoría y búsqueda de entradas por comprador.
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.

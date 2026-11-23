@@ -16,7 +16,8 @@ apps/
     src/compra/        reservas, pago, cancelación, idempotencia, barrido de expiración
     src/entradas/      billetera, material del QR (firma Ed25519), transferencias, revocaciones
     src/escaner/       llave pública, revocaciones, dispositivos, turnos y sincronización de lotes
-    src/admin/         portal: incidentes por evento (con control de organizador dueño)
+    src/eventos/       cartelera pública y detalle con disponibilidad (micro-cache de 1 s)
+    src/admin/         portal: eventos, zonas, fases, puertas, staff, incidentes, reembolsos y anulaciones
     src/common/        errores uniformes, correlación, logs JSON, acceso por evento
     test/              e2e contra PostgreSQL real (correr-e2e.sh)
     Dockerfile         una imagen para los servicios migrate y api
