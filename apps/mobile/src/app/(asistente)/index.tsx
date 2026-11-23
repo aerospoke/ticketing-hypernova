@@ -55,7 +55,7 @@ export default function Cartelera() {
       onEndReached={cargarMas}
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl refreshing={refrescando} onRefresh={() => { setExtra([]); setCursor(undefined); void recargar(true); }} />}
-      ListEmptyComponent={<Vacio titulo="No hay eventos por ahora" detalle="Desliza hacia abajo para actualizar." />}
+      ListEmptyComponent={<Vacio icono="estrella" titulo="No hay eventos por ahora" detalle="Desliza hacia abajo para actualizar." />}
       renderItem={({ item }) => (
         <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/evento/[id]', params: { id: item.id } })}>
           <Tarjeta>

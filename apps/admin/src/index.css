@@ -148,7 +148,14 @@ td.alerta { color: var(--alerta); font-weight: 600; }
 .cifra { position: relative; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--sombra); overflow: hidden; }
 .cifra::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--primario), var(--primario-2)); }
 .cifra span { font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: .1em; }
-.cifra strong { font-size: clamp(22px, 2.1vw, 30px); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cifra { container-type: inline-size; min-width: 0; }
+/* El dinero es la cifra con más dígitos: ocupa dos columnas cuando hay espacio
+   (en una sola columna no, porque forzaría una columna extra y desbordaría). */
+@media (min-width: 760px) { .cifra-ancha { grid-column: span 2; } }
+/* El número escala con el ancho de SU tarjeta (cqi = 1 % del ancho) y con su cantidad de
+   dígitos (--largo): "519" queda grande, "US$ 99,999,999.99" se achica solo lo necesario. */
+.cifra strong { display: block; font-size: clamp(16px, calc((100cqi - 4px) / (var(--largo, 6) * 0.6)), 34px); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cifra .moneda { font-size: .5em; font-weight: 700; color: var(--suave); letter-spacing: .02em; margin-right: .3em; vertical-align: .35em; }
 .cifra small { color: var(--suave); font-size: 13px; }
 
 .barra { display: flex; width: 140px; height: 8px; background: #efe9f6; border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
@@ -168,7 +175,13 @@ td.alerta { color: var(--alerta); font-weight: 600; }
    secundarias (col-l primero, después col-m, después col-s) y quedan las importantes. */
 @media (max-width: 1200px) { .col-l { display: none; } }
 @media (max-width: 900px) { .col-m { display: none; } }
-@media (max-width: 600px) { .col-s { display: none; } .tabla td, .tabla th { padding: 12px 10px; } }
+@media (max-width: 600px) {
+  .col-s { display: none; }
+  .tabla td, .tabla th { padding: 12px 10px; }
+  /* Pestañas en cuadrícula pareja en vez de una píldora partida en dos filas. */
+  .pestanas { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 18px; width: 100%; }
+  .pestanas a { text-align: center; padding: 9px 6px; border-radius: 12px; }
+}
 
 @media (max-width: 720px) {
   .cabecera { gap: 12px; }
@@ -183,8 +196,8 @@ td.alerta { color: var(--alerta); font-weight: 600; }
 .carrusel { position: relative; overflow: hidden; background: #0b0614; isolation: isolate; }
 .diapositiva { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity .5s ease; }
 .diapositiva.activa { opacity: 1; z-index: 1; }
-.diapositiva img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); transition: transform 2.6s ease-out; }
-.diapositiva.activa img { transform: scale(1); }
+.diapositiva > img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); transition: transform 2.6s ease-out; }
+.diapositiva.activa > img { transform: scale(1); }
 /* Degradado para que el texto se lea sobre cualquier foto. */
 .diapositiva::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,6,20,.05) 35%, rgba(11,6,20,.55) 65%, rgba(11,6,20,.92) 100%), linear-gradient(90deg, rgba(107,35,158,.35), transparent 60%); }
 .diapositiva figcaption { position: absolute; left: clamp(24px, 5vw, 72px); right: 140px; bottom: clamp(64px, 11vh, 120px); z-index: 2; color: #fff; display: flex; flex-direction: column; gap: 10px; transform: translateY(14px); opacity: 0; transition: transform .4s ease .1s, opacity .4s ease .1s; }
@@ -236,7 +249,27 @@ td.alerta { color: var(--alerta); font-weight: 600; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diapositiva, .diapositiva img, .diapositiva figcaption, .carrusel-puntos button { transition: opacity .3s ease; }
-  .diapositiva img, .diapositiva.activa img { transform: none; }
+  .diapositiva, .diapositiva > img, .diapositiva figcaption, .carrusel-puntos button { transition: opacity .3s ease; }
+  .diapositiva > img, .diapositiva.activa > img { transform: none; }
   .diapositiva figcaption { transform: none; }
 }
+
+/* ============ Íconos (Icons8) ============ */
+.icono { display: inline-block; vertical-align: -0.22em; flex-shrink: 0; }
+/* Sobre botones de color el degradado se pierde: se pinta de blanco. */
+.icono-blanco { filter: brightness(0) invert(1); }
+.btn, .btn-claro, .btn-peligro { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.acceso-logo .icono { vertical-align: middle; }
+.diapositiva-etiqueta { display: inline-flex; align-items: center; gap: 6px; }
+.cifra-icono { position: absolute; top: 16px; right: 16px; opacity: .9; }
+.cifra.con-icono > span { padding-right: 36px; }
+.estado { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.estado p { margin: 0; }
+.demanda { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--primario); background: rgba(107,35,158,.08); padding: 4px 10px 4px 8px; border-radius: 999px; margin-top: -2px; }
+/* Avisos con ícono de estado, sin tocar el HTML de cada página. */
+.aviso { display: flex; align-items: flex-start; gap: 10px; }
+.aviso.ok::before, .aviso.error::before { content: ''; flex: 0 0 18px; height: 18px; margin-top: 1px; background: center / contain no-repeat; }
+.aviso.ok::before { background-image: url(/iconos/listo.png); }
+.aviso.error::before { background-image: url(/iconos/cerrar.png); }
+.credito { margin: 0; font-size: 12px; color: var(--suave); }
+.credito a { color: var(--suave); text-decoration: underline; }

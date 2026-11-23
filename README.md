@@ -630,3 +630,13 @@ comentarios de cada migración):
   Expo de versión mayor, así que se dejó documentado.
 - App móvil: sin build instalable; se ejecuta con Expo Go siguiendo las instrucciones exactas de [apps/mobile/README.md](apps/mobile/README.md).
 - Sesión del portal: el refresh token vive en `sessionStorage`. Lo ideal es una cookie `httpOnly`.
+
+## Créditos
+
+- Íconos: [Icons8](https://icons8.com) (licencia gratuita con atribución). Están en
+  `apps/admin/public/iconos/` y `apps/mobile/assets/iconos/`, y el portal enlaza a Icons8
+  desde el login.
+- Fotos del carrusel del portal (`apps/admin/public/carrusel/`): se usan solo con fines
+  demostrativos. Los derechos pertenecen a sus autores.
+- Tipografía [Outfit](https://fonts.google.com/specimen/Outfit) (SIL Open Font License),
+  empaquetada con `@fontsource-variable/outfit`.

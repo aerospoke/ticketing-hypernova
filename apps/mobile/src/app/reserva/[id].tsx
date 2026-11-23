@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { api, mensajeDeError } from '../../lib/api';
 import { useConsulta } from '../../lib/usar';
 import { Aviso, Boton, Cargando, ErrorVista, s, Tarjeta } from '../../ui/componentes';
+import { Icono } from '../../ui/icono';
 import { color, pesos } from '../../ui/tema';
 
 interface Reserva {
@@ -72,6 +73,7 @@ export default function ReservaPantalla() {
     const ok = compra.estado === 'pagada';
     return (
       <View style={[s.pantalla, s.centro]}>
+        <Icono nombre={ok ? 'listo' : 'cerrar'} tam={72} />
         <Text style={[s.titulo, { color: ok ? color.exito : color.alerta }]}>{ok ? '¡Listo! Pago confirmado' : 'Pago devuelto'}</Text>
         <Text style={[s.suave, { textAlign: 'center' }]}>
           {ok

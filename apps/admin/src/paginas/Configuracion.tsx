@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api'
+import { Icono } from '../ui'
 import { aLocal, dinero, desdeLocal, fecha, mensaje } from '../util'
 
 export interface DetalleAdmin {
@@ -63,7 +64,7 @@ export function Configuracion({ evento, recargar }: { evento: DetalleAdmin; reca
         <ul className="lista">
           {evento.staff.map((s) => (
             <li key={s.id}>{s.nombre} <span className="suave">{s.email} · id {s.id}</span>{' '}
-              <button className="btn btn-claro" onClick={() => void hacer(() => api(`${base}/staff/${s.id}`, { metodo: 'DELETE' }), 'Staff quitado')}>Quitar</button>
+              <button className="btn btn-claro" onClick={() => void hacer(() => api(`${base}/staff/${s.id}`, { metodo: 'DELETE' }), 'Staff quitado')}><Icono nombre="cerrar" tam={14} /> Quitar</button>
             </li>
           ))}
           {evento.staff.length === 0 ? <li className="suave">Nadie asignado.</li> : null}
@@ -105,7 +106,7 @@ function DatosEvento({ evento, hacer }: { evento: DetalleAdmin; hacer: Hacer }) 
           <option value="cancelado">Cancelado</option>
         </select>
       </label>
-      <div className="ancho"><button className="btn">Guardar</button></div>
+      <div className="ancho"><button className="btn"><Icono nombre="listo" tam={18} blanco /> Guardar</button></div>
     </form>
   )
 }
@@ -118,7 +119,7 @@ function ZonaEditor({ zona, hacer }: { zona: DetalleAdmin['zonas'][number]; hace
         <h3>{zona.nombre} <small className="suave">vendidas {zona.vendidas} · reservadas {zona.reservadas}</small></h3>
         <form className="en-linea" onSubmit={(e) => { e.preventDefault(); void hacer(() => api(`/v1/admin/zonas/${zona.id}`, { metodo: 'PATCH', cuerpo: { aforo: Number(aforo) } }), 'Aforo actualizado') }}>
           <label>Aforo <input type="number" min={1} value={aforo} onChange={(e) => setAforo(e.target.value)} /></label>
-          <button className="btn btn-claro">Guardar aforo</button>
+          <button className="btn btn-claro"><Icono nombre="listo" tam={16} /> Guardar aforo</button>
         </form>
       </div>
       <table className="tabla compacta">
@@ -147,7 +148,7 @@ function FormLinea({ campos, boton, enviar }: { campos: [string, string, string]
       {campos.map(([k, etiqueta, tipo]) => (
         <label key={k}>{etiqueta}<input type={tipo} step={tipo === 'number' ? 'any' : undefined} value={v[k] ?? ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} required /></label>
       ))}
-      <button className="btn btn-claro">{boton}</button>
+      <button className="btn btn-claro"><Icono nombre="agregar" tam={16} /> {boton}</button>
     </form>
   )
 }

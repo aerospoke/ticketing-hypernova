@@ -1,5 +1,5 @@
 import { api } from '../api'
-import { Estado } from '../ui'
+import { Cifra, Estado } from '../ui'
 import { fecha, useCarga } from '../util'
 
 interface Accesos {
@@ -18,9 +18,9 @@ export function Accesos({ id }: { id: string }) {
       {datos ? (
         <div className="pila">
           <div className="cifras">
-            <div className="cifra"><span>Dentro del recinto</span><strong>{datos.dentro_del_recinto}</strong></div>
-            <div className="cifra"><span>Dobles ingresos</span><strong>{datos.por_puerta.reduce((a, p) => a + p.duplicados, 0)}</strong></div>
-            <div className="cifra"><span>Rechazos</span><strong>{datos.por_puerta.reduce((a, p) => a + p.rechazados, 0)}</strong></div>
+            <Cifra etiqueta="Dentro del recinto" icono="listo" valor={datos.dentro_del_recinto} />
+            <Cifra etiqueta="Dobles ingresos" icono="cerrar" valor={datos.por_puerta.reduce((a, p) => a + p.duplicados, 0)} />
+            <Cifra etiqueta="Rechazos" valor={datos.por_puerta.reduce((a, p) => a + p.rechazados, 0)} />
           </div>
 
           <section className="tarjeta">

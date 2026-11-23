@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api, nuevaClave } from '../api'
-import { Estado } from '../ui'
+import { Estado, Icono } from '../ui'
 import { dinero, fecha, mensaje, useCarga } from '../util'
 
 interface Fila {
@@ -65,7 +65,7 @@ export function Entradas({ id }: { id: string }) {
                   <td className="col-l">{fecha(e.emitida_en)}</td>
                   <td className="acciones">
                     <button className="btn btn-claro" disabled={!vigente} onClick={() => void accion(e, 'reembolso')}>Reembolsar</button>
-                    <button className="btn btn-peligro" disabled={!vigente} onClick={() => void accion(e, 'anular')}>Anular</button>
+                    <button className="btn btn-peligro" disabled={!vigente} onClick={() => void accion(e, 'anular')}><Icono nombre="cerrar" tam={14} /> Anular</button>
                   </td>
                 </tr>
               )

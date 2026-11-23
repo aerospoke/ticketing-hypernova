@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, usuarioActual } from '../api'
 import { portadaDe } from '../carrusel'
-import { Estado } from '../ui'
+import { Estado, Icono } from '../ui'
 import { desdeLocal, fecha, ir, mensaje, useCarga } from '../util'
 
 interface EventoFila {
@@ -31,7 +31,9 @@ export function Eventos() {
           <h1>Cartelera</h1>
           {total ? <p className="suave">{datos?.length} eventos · {total.vendidas.toLocaleString('es-PA')} entradas vendidas de {total.aforo.toLocaleString('es-PA')}</p> : null}
         </div>
-        <button className="btn btn-grande" onClick={() => setCreando((c) => !c)}>{creando ? 'Cerrar' : '+ Nuevo evento'}</button>
+        <button className="btn btn-grande" onClick={() => setCreando((c) => !c)}>
+          <Icono nombre={creando ? 'cerrar' : 'agregar'} tam={20} blanco /> {creando ? 'Cerrar' : 'Nuevo evento'}
+        </button>
       </div>
       {creando ? <NuevoEvento alCrear={(id) => ir(`/eventos/${id}/configuracion`)} /> : null}
       <Estado cargando={cargando} error={error} reintentar={recargar} vacio={datos?.length === 0 && 'Todavía no hay eventos.'}>
@@ -53,6 +55,7 @@ export function Eventos() {
                 </div>
                 <div className="tarjeta-evento-cuerpo">
                   <h3>{e.nombre}</h3>
+                  {pct >= 80 && !pasado ? <span className="demanda"><Icono nombre="estrella" tam={16} /> Alta demanda</span> : null}
                   <p className="suave">{e.recinto} · {f.toLocaleTimeString('es-PA', { hour: '2-digit', minute: '2-digit' })}</p>
                   <div className="ocupacion">
                     <div className="ocupacion-barra"><div style={{ width: `${pct}%` }} /></div>
@@ -108,7 +111,7 @@ function NuevoEvento({ alCrear }: { alCrear: (id: string) => void }) {
       <label>Límite por cuenta<input type="number" min={1} max={100} value={f.limite_por_cuenta} onChange={set('limite_por_cuenta')} required /></label>
       {esAdmin ? <label>ID del organizador<input value={f.organizador_id} onChange={set('organizador_id')} placeholder="100201" required /></label> : null}
       {error ? <div className="aviso error ancho">{error}</div> : null}
-      <div className="ancho"><button className="btn">Crear en borrador</button> <span className="suave">Después agregas zonas, fases y puertas, y lo publicas.</span></div>
+      <div className="ancho"><button className="btn"><Icono nombre="agregar" tam={18} blanco /> Crear en borrador</button> <span className="suave">Después agregas zonas, fases y puertas, y lo publicas.</span></div>
     </form>
   )
 }

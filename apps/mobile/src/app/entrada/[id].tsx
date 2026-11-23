@@ -8,6 +8,7 @@ import { obtenerMaterial, parDispositivo } from '../../lib/billetera';
 import { useCodigoRotativo } from '../../lib/codigo-rotativo';
 import { useConsulta, useSesion } from '../../lib/usar';
 import { Aviso, Boton, Campo, Cargando, ErrorVista, s, Tarjeta } from '../../ui/componentes';
+import { Icono } from '../../ui/icono';
 import { color } from '../../ui/tema';
 
 export default function EntradaPantalla() {
@@ -77,7 +78,10 @@ export default function EntradaPantalla() {
         </Text>
         <Text style={[s.suave, { textAlign: 'center' }]}>Una captura de pantalla no sirve: el escáner solo acepta códigos de los últimos 30 segundos generados en este teléfono.</Text>
       </Tarjeta>
-      <Text style={s.suave}>Entrada #{id} · versión {datos?.material.version}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Icono nombre="boleto" tam={22} />
+        <Text style={s.suave}>Entrada #{id} · versión {datos?.material.version}</Text>
+      </View>
 
       <Tarjeta>
         <Text style={s.subtitulo}>Transferir a otra persona</Text>

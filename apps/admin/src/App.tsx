@@ -4,6 +4,7 @@ import { Auditoria } from './paginas/Auditoria'
 import { Evento } from './paginas/Evento'
 import { Eventos } from './paginas/Eventos'
 import { Login } from './paginas/Login'
+import { Icono } from './ui'
 import { ir, useRuta } from './util'
 
 const iniciales = (nombre: string) =>
@@ -18,7 +19,7 @@ export default function App() {
     void restaurar().finally(() => setListo(true))
   }, [])
 
-  if (!listo) return <div className="arranque"><span className="acceso-logo" aria-hidden="true">◆</span></div>
+  if (!listo) return <div className="arranque"><span className="acceso-logo" aria-hidden="true"><Icono nombre="boleto" tam={30} blanco /></span></div>
   if (!usuario) return <Login />
 
   let pagina = <Eventos />
@@ -29,7 +30,7 @@ export default function App() {
     <div className="marco">
       <header className="cabecera">
         <a className="marca" href="#/eventos">
-          <span className="acceso-logo" aria-hidden="true">◆</span> Ticketing
+          <span className="acceso-logo" aria-hidden="true"><Icono nombre="boleto" tam={22} blanco /></span> Ticketing
           <small>Portal</small>
         </a>
         <nav aria-label="Secciones">

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { login } from '../api'
 import { DIAPOSITIVAS } from '../carrusel'
+import { Icono } from '../ui'
 import { mensaje } from '../util'
 
 // Rápido a propósito: en ~10 segundos de vista se alcanzan a ver 4 o 5 artistas.
@@ -33,7 +34,7 @@ export function Login() {
       <section className="acceso-lado">
         <div className="acceso-caja">
           <div className="acceso-marca">
-            <span className="acceso-logo" aria-hidden="true">◆</span> Ticketing
+            <span className="acceso-logo" aria-hidden="true"><Icono nombre="boleto" tam={22} blanco /></span> Ticketing
           </div>
           <h1 className="acceso-titulo">
             Que empiece<br /><span>el show.</span>
@@ -61,6 +62,7 @@ export function Login() {
             </button>
           </form>
           <p className="acceso-pie">Acceso para organizadores y administradores.</p>
+          <p className="credito">Íconos de <a href="https://icons8.com" target="_blank" rel="noreferrer">Icons8</a></p>
         </div>
       </section>
     </div>
@@ -87,7 +89,7 @@ function Carrusel() {
         <figure key={d.imagen} className={`diapositiva ${i === actual ? 'activa' : ''}`} aria-hidden={i !== actual}>
           <img src={d.imagen} alt="" style={{ objectPosition: d.foco ?? 'center' }} loading={i === 0 ? 'eager' : 'lazy'} />
           <figcaption>
-            <span className="diapositiva-etiqueta">En cartelera</span>
+            <span className="diapositiva-etiqueta"><Icono nombre="estrella" tam={14} blanco /> En cartelera</span>
             <strong className="diapositiva-artista">{d.artista}</strong>
             <span className="diapositiva-detalle">{d.detalle}</span>
           </figcaption>

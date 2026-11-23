@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
-import { Estado } from '../ui'
+import { Estado, Icono } from '../ui'
 import { fecha, mensaje, useCarga } from '../util'
 
 interface Incidente {
@@ -42,7 +42,7 @@ export function Incidentes({ id }: { id: string }) {
   }
 
   return (
-    <Estado cargando={cargando && !datos} error={!datos && error} reintentar={recargar} vacio={datos?.items.length === 0 && 'Sin incidentes. 🎉'}>
+    <Estado cargando={cargando && !datos} error={!datos && error} reintentar={recargar} vacio={datos?.items.length === 0 && 'Sin incidentes: todo en orden.'}>
       {aviso ? <div className="aviso error">{aviso}</div> : null}
       <table className="tabla">
         <thead><tr><th>Tipo</th><th>Entrada</th><th>Detalle</th><th>Detectado</th><th>Estado</th><th></th></tr></thead>
@@ -61,7 +61,7 @@ export function Incidentes({ id }: { id: string }) {
               </td>
               <td>{fecha(i.creado_en)}</td>
               <td><span className={`insignia ${i.estado}`}>{i.estado}</span></td>
-              <td>{i.estado === 'abierto' ? <button className="btn btn-claro" onClick={() => void resolver(i)}>Resolver</button> : null}</td>
+              <td>{i.estado === 'abierto' ? <button className="btn btn-claro" onClick={() => void resolver(i)}><Icono nombre="listo" tam={16} /> Resolver</button> : null}</td>
             </tr>
           ))}
         </tbody>

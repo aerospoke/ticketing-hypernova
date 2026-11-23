@@ -1,5 +1,5 @@
 import { api } from '../api'
-import { Estado } from '../ui'
+import { Cifra, Estado } from '../ui'
 import { dinero, fecha, useCarga } from '../util'
 
 interface Fila {
@@ -30,11 +30,11 @@ export function Ventas({ id }: { id: string }) {
       {datos && t ? (
         <>
           <div className="cifras">
-            <div className="cifra"><span>Vendidas</span><strong>{t.vendidas}</strong><small>de {t.aforo}</small></div>
-            <div className="cifra"><span>Reservadas ahora</span><strong>{t.reservadas}</strong></div>
-            <div className="cifra"><span>Disponibles</span><strong>{t.disponibles}</strong></div>
-            <div className="cifra"><span>Ingreso neto</span><strong>{dinero(t.neto_centesimos)}</strong><small>reembolsado {dinero(t.reembolsado_centesimos)}</small></div>
-            <div className="cifra"><span>Ya ingresaron</span><strong>{t.ingresaron}</strong></div>
+            <Cifra etiqueta="Vendidas" icono="boleto" valor={t.vendidas} nota={`de ${t.aforo.toLocaleString('es-PA')}`} />
+            <Cifra etiqueta="Reservadas ahora" valor={t.reservadas} />
+            <Cifra etiqueta="Disponibles" valor={t.disponibles} />
+            <Cifra etiqueta="Ingreso neto" icono="estrella" ancha centesimos={t.neto_centesimos} nota={`reembolsado ${dinero(t.reembolsado_centesimos)}`} />
+            <Cifra etiqueta="Ya ingresaron" icono="listo" valor={t.ingresaron} />
           </div>
           <table className="tabla">
             <thead><tr><th>Zona</th><th>Ocupación</th><th>Vendidas</th><th className="col-l">Reservadas</th><th className="col-m">Disponibles</th><th className="col-l">Precio vigente</th><th className="col-m">Cobrado</th><th className="col-m">Reembolsado</th><th>Neto</th></tr></thead>

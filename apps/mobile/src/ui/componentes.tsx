@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, type TextInputProps, View, type ViewStyle } from 'react-native';
 import { mensajeDeError } from '../lib/api';
+import { Icono, type NombreIcono } from './icono';
 import { color, espacio } from './tema';
 
 export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
@@ -12,9 +13,10 @@ export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
   );
 }
 
-export function Vacio({ titulo, detalle }: { titulo: string; detalle?: string }) {
+export function Vacio({ titulo, detalle, icono = 'boleto' }: { titulo: string; detalle?: string; icono?: NombreIcono }) {
   return (
     <View style={s.centro}>
+      <Icono nombre={icono} tam={64} />
       <Text style={s.titulo}>{titulo}</Text>
       {detalle ? <Text style={[s.suave, { textAlign: 'center' }]}>{detalle}</Text> : null}
     </View>

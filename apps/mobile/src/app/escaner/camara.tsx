@@ -8,6 +8,7 @@ import {
   contarPendientes, escanear, resumenTurno, sincronizar, terminarTurno, turnoActual, ultimaSync, ultimosEscaneos, type Veredicto,
 } from '../../lib/escaner';
 import { Boton, Cargando, s } from '../../ui/componentes';
+import { Icono } from '../../ui/icono';
 import { color } from '../../ui/tema';
 
 const PANTALLA: Record<Veredicto['tipo'], { titulo: string; fondo: string }> = {
@@ -107,6 +108,7 @@ export default function Camara() {
         <View pointerEvents="none" style={st.marco} />
         {veredicto ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Escanear siguiente" onPress={() => setVeredicto(null)} style={[st.resultado, { backgroundColor: PANTALLA[veredicto.tipo].fondo }]}>
+            <Icono nombre={veredicto.tipo === 'valida' ? 'listo' : 'cerrar'} tam={96} tinte="#fff" />
             <Text accessibilityLiveRegion="assertive" style={st.resultadoTitulo}>{PANTALLA[veredicto.tipo].titulo}</Text>
             {'entrada' in veredicto && veredicto.entrada ? <Text style={st.resultadoTexto}>Entrada #{veredicto.entrada}</Text> : null}
             <Text style={st.resultadoTexto}>Toca para escanear la siguiente</Text>
