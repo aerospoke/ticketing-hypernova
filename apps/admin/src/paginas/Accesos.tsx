@@ -19,8 +19,8 @@ export function Accesos({ id }: { id: string }) {
         <div className="pila">
           <div className="cifras">
             <Cifra etiqueta="Dentro del recinto" icono="listo" valor={datos.dentro_del_recinto} />
-            <Cifra etiqueta="Dobles ingresos" icono="cerrar" valor={datos.por_puerta.reduce((a, p) => a + p.duplicados, 0)} />
-            <Cifra etiqueta="Rechazos" valor={datos.por_puerta.reduce((a, p) => a + p.rechazados, 0)} />
+            <Cifra etiqueta="Dobles ingresos" icono="boleto" valor={datos.por_puerta.reduce((a, p) => a + p.duplicados, 0)} />
+            <Cifra etiqueta="Rechazos" icono="cerrar" valor={datos.por_puerta.reduce((a, p) => a + p.rechazados, 0)} />
           </div>
 
           <section className="tarjeta">

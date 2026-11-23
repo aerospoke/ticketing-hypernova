@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { mensaje } from './util'
 
-export type NombreIcono = 'boleto' | 'estrella' | 'agregar' | 'listo' | 'cerrar'
+export type NombreIcono = 'boleto' | 'estrella' | 'agregar' | 'listo' | 'cerrar' | 'reserva' | 'disponible'
 
 /** Ícono decorativo (Icons8). `blanco` lo pinta de blanco para usarlo sobre botones de color. */
 export function Icono({ nombre, tam = 18, blanco = false, clase = '' }: { nombre: NombreIcono; tam?: number; blanco?: boolean; clase?: string }) {

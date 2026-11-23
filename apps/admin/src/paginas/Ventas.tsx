@@ -31,8 +31,8 @@ export function Ventas({ id }: { id: string }) {
         <>
           <div className="cifras">
             <Cifra etiqueta="Vendidas" icono="boleto" valor={t.vendidas} nota={`de ${t.aforo.toLocaleString('es-PA')}`} />
-            <Cifra etiqueta="Reservadas ahora" valor={t.reservadas} />
-            <Cifra etiqueta="Disponibles" valor={t.disponibles} />
+            <Cifra etiqueta="Reservadas ahora" icono="reserva" valor={t.reservadas} />
+            <Cifra etiqueta="Disponibles" icono="disponible" valor={t.disponibles} />
             <Cifra etiqueta="Ingreso neto" icono="estrella" ancha centesimos={t.neto_centesimos} nota={`reembolsado ${dinero(t.reembolsado_centesimos)}`} />
             <Cifra etiqueta="Ya ingresaron" icono="listo" valor={t.ingresaron} />
           </div>
