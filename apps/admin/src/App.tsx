@@ -6,6 +6,9 @@ import { Eventos } from './paginas/Eventos'
 import { Login } from './paginas/Login'
 import { ir, useRuta } from './util'
 
+const iniciales = (nombre: string) =>
+  nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')
+
 export default function App() {
   const usuario = useSyncExternalStore(suscribirSesion, usuarioActual)
   const [listo, setListo] = useState(false)
@@ -15,7 +18,7 @@ export default function App() {
     void restaurar().finally(() => setListo(true))
   }, [])
 
-  if (!listo) return <p className="estado">Cargando…</p>
+  if (!listo) return <div className="arranque"><span className="acceso-logo" aria-hidden="true">◆</span></div>
   if (!usuario) return <Login />
 
   let pagina = <Eventos />
@@ -25,14 +28,21 @@ export default function App() {
   return (
     <div className="marco">
       <header className="cabecera">
-        <a className="marca" href="#/eventos">Ticketing · Portal</a>
-        <nav>
+        <a className="marca" href="#/eventos">
+          <span className="acceso-logo" aria-hidden="true">◆</span> Ticketing
+          <small>Portal</small>
+        </a>
+        <nav aria-label="Secciones">
           <a href="#/eventos" className={ruta[0] !== 'auditoria' ? 'activo' : ''}>Eventos</a>
           <a href="#/auditoria" className={ruta[0] === 'auditoria' ? 'activo' : ''}>Auditoría</a>
         </nav>
         <div className="quien">
-          <span>{usuario.nombre} <small>({usuario.rol})</small></span>
-          <button className="btn btn-claro" onClick={() => void logout().then(() => ir('/eventos'))}>Salir</button>
+          <span className="avatar" aria-hidden="true">{iniciales(usuario.nombre)}</span>
+          <span className="quien-texto">
+            <strong>{usuario.nombre}</strong>
+            <small>{usuario.rol === 'admin' ? 'Administrador' : 'Organizador'}</small>
+          </span>
+          <button className="btn-salir" onClick={() => void logout().then(() => ir('/eventos'))}>Salir</button>
         </div>
       </header>
       <main className="contenido">{pagina}</main>

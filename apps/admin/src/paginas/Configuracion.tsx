@@ -12,6 +12,7 @@ export interface DetalleAdmin {
   reembolsable_hasta: string
   limite_por_cuenta: number
   estado: 'borrador' | 'publicado' | 'cancelado'
+  finalizado: boolean
   organizador_id: string
   zonas: { id: string; nombre: string; aforo: number; vendidas: number; reservadas: number; fases: { id: string; fase: string; precio_centesimos: number; desde: string; hasta: string }[] }[]
   puertas: { id: string; nombre: string }[]

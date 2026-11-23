@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { api, usuarioActual } from '../api'
+import { portadaDe } from '../carrusel'
 import { Estado } from '../ui'
 import { desdeLocal, fecha, ir, mensaje, useCarga } from '../util'
 
@@ -14,35 +15,59 @@ interface EventoFila {
   vendidas: number
   reservadas: number
   disponibles: number
+  finalizado: boolean
 }
 
 export function Eventos() {
   const { datos, error, cargando, recargar } = useCarga(() => api<EventoFila[]>('/v1/admin/eventos'), 'eventos')
   const [creando, setCreando] = useState(false)
 
+  const total = datos?.reduce((a, e) => ({ vendidas: a.vendidas + e.vendidas, aforo: a.aforo + e.aforo }), { vendidas: 0, aforo: 0 })
   return (
     <>
-      <div className="fila-titulo">
-        <h1>Eventos</h1>
-        <button className="btn" onClick={() => setCreando((c) => !c)}>{creando ? 'Cerrar' : 'Nuevo evento'}</button>
+      <div className="encabezado">
+        <div>
+          <span className="sobretitulo">Tus eventos</span>
+          <h1>Cartelera</h1>
+          {total ? <p className="suave">{datos?.length} eventos · {total.vendidas.toLocaleString('es-PA')} entradas vendidas de {total.aforo.toLocaleString('es-PA')}</p> : null}
+        </div>
+        <button className="btn btn-grande" onClick={() => setCreando((c) => !c)}>{creando ? 'Cerrar' : '+ Nuevo evento'}</button>
       </div>
       {creando ? <NuevoEvento alCrear={(id) => ir(`/eventos/${id}/configuracion`)} /> : null}
       <Estado cargando={cargando} error={error} reintentar={recargar} vacio={datos?.length === 0 && 'Todavía no hay eventos.'}>
-        <table className="tabla">
-          <thead><tr><th>Evento</th><th>Fecha</th><th>Estado</th><th>Vendidas</th><th>Reservadas</th><th>Disponibles</th></tr></thead>
-          <tbody>
-            {datos?.map((e) => (
-              <tr key={e.id} className="clic" onClick={() => ir(`/eventos/${e.id}/ventas`)}>
-                <td><strong>{e.nombre}</strong><div className="suave">{e.codigo} · {e.recinto}</div></td>
-                <td>{fecha(e.fecha)}</td>
-                <td><span className={`insignia ${e.estado}`}>{e.estado}</span></td>
-                <td>{e.vendidas} / {e.aforo}</td>
-                <td>{e.reservadas}</td>
-                <td>{e.disponibles}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="tarjetas-eventos">
+          {datos?.map((e) => {
+            const portada = portadaDe(e.id)
+            const f = new Date(e.fecha)
+            const pct = e.aforo ? Math.round((e.vendidas / e.aforo) * 100) : 0
+            const pasado = e.finalizado
+            return (
+              <a key={e.id} href={`#/eventos/${e.id}/ventas`} className={`tarjeta-evento ${pasado ? 'pasado' : ''}`}>
+                <div className="tarjeta-evento-portada">
+                  <img src={portada.imagen} alt="" style={{ objectPosition: portada.foco }} loading="lazy" />
+                  <div className="calendario" aria-label={fecha(e.fecha)}>
+                    <strong>{f.getDate()}</strong>
+                    <span>{f.toLocaleDateString('es-PA', { month: 'short' }).replace('.', '')}</span>
+                  </div>
+                  <span className={`insignia ${e.estado}`}>{pasado ? 'finalizado' : e.estado}</span>
+                </div>
+                <div className="tarjeta-evento-cuerpo">
+                  <h3>{e.nombre}</h3>
+                  <p className="suave">{e.recinto} · {f.toLocaleTimeString('es-PA', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <div className="ocupacion">
+                    <div className="ocupacion-barra"><div style={{ width: `${pct}%` }} /></div>
+                    <span>{pct}%</span>
+                  </div>
+                  <div className="tarjeta-evento-cifras">
+                    <span><strong>{e.vendidas}</strong> vendidas</span>
+                    <span><strong>{e.disponibles}</strong> disponibles</span>
+                    {e.reservadas > 0 ? <span className="en-vivo"><strong>{e.reservadas}</strong> reservando</span> : null}
+                  </div>
+                </div>
+              </a>
+            )
+          })}
+        </div>
       </Estado>
     </>
   )

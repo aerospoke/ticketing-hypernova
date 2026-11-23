@@ -52,15 +52,15 @@ export function Accesos({ id }: { id: string }) {
             <h2>Dispositivos</h2>
             {datos.dispositivos.length === 0 ? <p className="suave">Ningún escáner inició turno en este evento.</p> : (
               <table className="tabla compacta">
-                <thead><tr><th>Dispositivo</th><th>Staff</th><th>Puerta</th><th>Turno</th><th>Escaneos recibidos</th><th>Última sincronización</th></tr></thead>
+                <thead><tr><th>Dispositivo</th><th className="col-s">Staff</th><th>Puerta</th><th className="col-m">Turno</th><th className="col-s">Escaneos</th><th>Última sincronización</th></tr></thead>
                 <tbody>
                   {datos.dispositivos.map((d) => {
                     const minutos = d.minutos_sin_sync ?? Infinity
                     return (
                       <tr key={d.id}>
-                        <td>{d.nombre}</td><td>{d.staff}</td><td>{d.puerta}</td>
-                        <td>{d.turno_abierto ? 'abierto' : 'cerrado'}</td>
-                        <td>{d.escaneos}</td>
+                        <td>{d.nombre}</td><td className="col-s">{d.staff}</td><td>{d.puerta}</td>
+                        <td className="col-m">{d.turno_abierto ? 'abierto' : 'cerrado'}</td>
+                        <td className="col-s">{d.escaneos}</td>
                         <td className={d.turno_abierto && minutos > 10 ? 'alerta' : ''}>{fecha(d.ultima_sync)}{d.turno_abierto && minutos > 10 ? ' · sin sincronizar hace rato' : ''}</td>
                       </tr>
                     )

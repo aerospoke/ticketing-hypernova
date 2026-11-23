@@ -37,7 +37,7 @@ export function Ventas({ id }: { id: string }) {
             <div className="cifra"><span>Ya ingresaron</span><strong>{t.ingresaron}</strong></div>
           </div>
           <table className="tabla">
-            <thead><tr><th>Zona</th><th>Ocupación</th><th>Vendidas</th><th>Reservadas</th><th>Disponibles</th><th>Precio vigente</th><th>Cobrado</th><th>Reembolsado</th><th>Neto</th></tr></thead>
+            <thead><tr><th>Zona</th><th>Ocupación</th><th>Vendidas</th><th className="col-l">Reservadas</th><th className="col-m">Disponibles</th><th className="col-l">Precio vigente</th><th className="col-m">Cobrado</th><th className="col-m">Reembolsado</th><th>Neto</th></tr></thead>
             <tbody>
               {datos.zonas.map((z) => {
                 const pct = Math.round(((z.vendidas + z.reservadas) / z.aforo) * 100)
@@ -45,13 +45,13 @@ export function Ventas({ id }: { id: string }) {
                   <tr key={z.id}>
                     <td><strong>{z.nombre}</strong></td>
                     <td><div className="barra" aria-label={`${pct}% ocupado`}><div style={{ width: `${(z.vendidas / z.aforo) * 100}%` }} /><div className="reserva" style={{ width: `${(z.reservadas / z.aforo) * 100}%` }} /></div><small>{pct}%</small></td>
-                    <td>{z.vendidas} / {z.aforo}</td>
-                    <td>{z.reservadas}</td>
-                    <td>{z.disponibles}</td>
-                    <td>{z.precio_vigente != null ? dinero(z.precio_vigente) : '—'}</td>
-                    <td>{dinero(z.cobrado_centesimos)}</td>
-                    <td>{dinero(z.reembolsado_centesimos)}</td>
-                    <td><strong>{dinero(z.neto_centesimos)}</strong></td>
+                    <td className="num">{z.vendidas} / {z.aforo}</td>
+                    <td className="col-l">{z.reservadas}</td>
+                    <td className="col-m">{z.disponibles}</td>
+                    <td className="num col-l">{z.precio_vigente != null ? dinero(z.precio_vigente) : '—'}</td>
+                    <td className="num col-m">{dinero(z.cobrado_centesimos)}</td>
+                    <td className="num col-m">{dinero(z.reembolsado_centesimos)}</td>
+                    <td className="num"><strong>{dinero(z.neto_centesimos)}</strong></td>
                   </tr>
                 )
               })}

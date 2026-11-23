@@ -36,15 +36,15 @@ export function Auditoria() {
       <p className="suave">Acciones administrativas. Este registro no se puede modificar ni borrar desde la aplicación.</p>
       <Estado cargando={cargando} error={error} reintentar={recargar} vacio={filas.length === 0 && 'Sin registros.'}>
         <table className="tabla">
-          <thead><tr><th>Cuándo</th><th>Quién</th><th>Acción</th><th>Sobre</th><th>Detalle</th></tr></thead>
+          <thead><tr><th>Cuándo</th><th>Quién</th><th>Acción</th><th className="col-m">Sobre</th><th className="col-s">Detalle</th></tr></thead>
           <tbody>
             {filas.map((r) => (
               <tr key={r.id}>
                 <td>{fecha(r.creado_en)}</td>
                 <td>{r.actor_email ?? 'sistema'}<div className="suave">{r.actor_rol}</div></td>
                 <td><strong>{r.accion.replaceAll('_', ' ')}</strong></td>
-                <td>{r.entidad} {r.entidad_id ? `#${r.entidad_id}` : ''}</td>
-                <td><code className="detalle">{JSON.stringify(r.detalle)}</code></td>
+                <td className="col-m">{r.entidad} {r.entidad_id ? `#${r.entidad_id}` : ''}</td>
+                <td className="col-s"><code className="detalle">{JSON.stringify(r.detalle)}</code></td>
               </tr>
             ))}
           </tbody>

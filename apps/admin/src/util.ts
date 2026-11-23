@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { ErrorApi } from './api'
 
 export const dinero = (c: number) => `US$ ${(c / 100).toLocaleString('es-PA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-export const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-PA', { dateStyle: 'medium', timeStyle: 'short' }) : '—')
+// "7 dic 2026, 20:00": sin formatos numéricos ambiguos (12/07 ¿julio o diciembre?).
+export const fecha = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 /** Para inputs datetime-local (hora local del navegador) <-> ISO con zona. */
 export const aLocal = (iso: string) => {
   const d = new Date(iso)

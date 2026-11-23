@@ -46,7 +46,7 @@ export class AdminEventosService {
   /** Eventos propios (admin: todos) con un resumen de ventas por evento. */
   async listar(s: Sesion) {
     const { rows } = await this.pool.query(
-      `SELECT e.id, e.codigo, e.nombre, e.recinto, e.fecha, e.venta_abre, e.estado, e.organizador_id,
+      `SELECT e.id, e.codigo, e.nombre, e.recinto, e.fecha, e.venta_abre, e.estado, e.organizador_id, (e.fecha < now()) AS finalizado,
               COALESCE(sum(z.aforo), 0)::int AS aforo, COALESCE(sum(z.vendidas), 0)::int AS vendidas,
               COALESCE(sum(z.reservadas), 0)::int AS reservadas,
               COALESCE(sum(z.aforo - z.vendidas - z.reservadas), 0)::int AS disponibles
@@ -62,7 +62,7 @@ export class AdminEventosService {
   async detalle(s: Sesion, eventoId: string) {
     await exigirAccesoEvento(this.pool, s, eventoId, { staff: false });
     const { rows } = await this.pool.query(
-      `SELECT e.*,
+      `SELECT e.*, (e.fecha < now()) AS finalizado,
               COALESCE((SELECT json_agg(json_build_object(
                   'id', z.id::text, 'nombre', z.nombre, 'aforo', z.aforo, 'vendidas', z.vendidas, 'reservadas', z.reservadas,
                   'fases', COALESCE((SELECT json_agg(json_build_object('id', f.id::text, 'fase', f.fase,

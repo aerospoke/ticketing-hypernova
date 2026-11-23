@@ -1,4 +1,5 @@
 import { api } from '../api'
+import { portadaDe } from '../carrusel'
 import { Estado } from '../ui'
 import { fecha, useCarga } from '../util'
 import { Accesos } from './Accesos'
@@ -22,14 +23,17 @@ export function Evento({ id, seccion }: { id: string; seccion: string }) {
     <Estado cargando={cargando && !datos} error={!datos && error} reintentar={recargar}>
       {datos ? (
         <>
-          <a href="#/eventos" className="suave">← Eventos</a>
-          <div className="fila-titulo">
-            <h1>{datos.nombre}</h1>
-            <span className={`insignia ${datos.estado}`}>{datos.estado}</span>
-          </div>
-          <p className="suave">{datos.codigo} · {fecha(datos.fecha)} · {datos.recinto} · límite {datos.limite_por_cuenta} por cuenta</p>
-          <nav className="pestanas">
-            {SECCIONES.map(([k, t]) => <a key={k} href={`#/eventos/${id}/${k}`} className={seccion === k ? 'activo' : ''}>{t}</a>)}
+          <section className="banner" style={{ ['--portada' as string]: `url(${portadaDe(datos.id).imagen})` }}>
+            <img src={portadaDe(datos.id).imagen} alt="" style={{ objectPosition: portadaDe(datos.id).foco }} />
+            <div className="banner-texto">
+              <a href="#/eventos" className="volver">← Cartelera</a>
+              <span className={`insignia ${datos.finalizado ? 'finalizado' : datos.estado}`}>{datos.finalizado ? 'finalizado' : datos.estado}</span>
+              <h1>{datos.nombre}</h1>
+              <p>{fecha(datos.fecha)} · {datos.recinto} · máximo {datos.limite_por_cuenta} por cuenta · <code>{datos.codigo}</code></p>
+            </div>
+          </section>
+          <nav className="pestanas" aria-label="Secciones del evento">
+            {SECCIONES.map(([k, t]) => <a key={k} href={`#/eventos/${id}/${k}`} className={seccion === k ? 'activo' : ''} aria-current={seccion === k ? 'page' : undefined}>{t}</a>)}
           </nav>
           {seccion === 'ventas' && <Ventas id={id} />}
           {seccion === 'configuracion' && <Configuracion evento={datos} recargar={recargar} />}
