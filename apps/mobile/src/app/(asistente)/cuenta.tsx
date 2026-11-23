@@ -4,10 +4,10 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, cerrarSesion, mensajeDeError } from '../../lib/api';
 import { useConsulta, useSesion } from '../../lib/usar';
-import { Aviso, Boton, Cargando, ErrorVista, Insignia, s, Seccion, TapaSuperior, Tarjeta } from '../../ui/componentes';
+import { Aviso, Boton, Cargando, ErrorVista, Insignia, s, Segmentos, TapaSuperior } from '../../ui/componentes';
 import { Icono } from '../../ui/icono';
 import { Degradado } from '../../ui/portada';
-import { color, espacio, fecha, pesos, radio } from '../../ui/tema';
+import { color, espacio, fecha, pesos, radio, sombra } from '../../ui/tema';
 import { useBarraClara } from '../../ui/barra';
 
 interface Compra {
@@ -52,6 +52,8 @@ export default function Cuenta() {
     return { compras: compras.items, transferencias };
   });
   const [fallo, setFallo] = useState<string | null>(null);
+  // null = automático: si hay transferencias por resolver se abre esa pestaña; si no, compras.
+  const [pestana, setPestana] = useState<'transf' | 'compras' | null>(null);
 
   async function resolver(t: Transferencia, accion: 'aceptar' | 'rechazar' | 'cancelar') {
     setFallo(null);
@@ -70,7 +72,9 @@ export default function Cuenta() {
   const iniciales = nombre.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
   const compras = datos?.compras ?? [];
   const totalEntradas = compras.reduce((n, c) => n + c.cantidad, 0);
-  const pendientes = (datos?.transferencias ?? []).filter((t) => t.estado === 'pendiente').length;
+  const transferencias = datos?.transferencias ?? [];
+  const pendientes = transferencias.filter((t) => t.estado === 'pendiente').length;
+  const vista = pestana ?? (pendientes > 0 ? 'transf' : 'compras');
 
   return (
     <View style={s.pantalla}>
@@ -90,58 +94,71 @@ export default function Cuenta() {
       </View>
 
       <View style={s.contenido}>
-        <Seccion titulo="Transferencias" />
         {fallo ? <Aviso tipo="error" texto={fallo} /> : null}
-        {datos?.transferencias.length === 0 ? <Tarjeta><Text style={s.suave}>No tienes transferencias. Puedes enviar una entrada desde su pantalla.</Text></Tarjeta> : null}
-        {datos?.transferencias.map((t) => (
-          <Tarjeta key={t.id}>
-            <View style={s.fila}>
-              <Text style={[s.subtitulo, { flex: 1 }]} numberOfLines={1}>{t.evento}</Text>
-              <Insignia texto={ESTADO_TRANSF[t.estado][0]} tono={ESTADO_TRANSF[t.estado][1]} />
-            </View>
-            <Text style={s.suave}>
-              {t.direccion === 'recibida' ? `📥  De ${t.de_email}` : `📤  Para ${t.a_email}`} · Entrada #{t.entrada_id}
-            </Text>
-            {t.estado === 'pendiente' && t.direccion === 'recibida' ? (
-              <View style={[s.fila, { gap: 10, marginTop: 4 }]}>
-                <Boton texto="Aceptar" onPress={() => void resolver(t, 'aceptar')} estilo={{ flex: 1 }} />
-                <Boton texto="Rechazar" variante="secundario" onPress={() => void resolver(t, 'rechazar')} estilo={{ flex: 1 }} />
-              </View>
-            ) : null}
-            {t.estado === 'pendiente' && t.direccion === 'enviada' ? (
-              <Boton texto="Cancelar transferencia" variante="secundario" onPress={() => void resolver(t, 'cancelar')} />
-            ) : null}
-          </Tarjeta>
-        ))}
 
-        <Seccion titulo="Historial de compras" />
-        {compras.length === 0 ? <Tarjeta><Text style={s.suave}>Todavía no compraste entradas.</Text></Tarjeta> : null}
-        {compras.map((c) => (
-          <Tarjeta key={c.id}>
-            <View style={s.fila}>
-              <View style={e.icono}>
-                <Icono nombre="boleto" tam={22} />
+        <Segmentos
+          actual={vista}
+          cambiar={setPestana}
+          opciones={[
+            { valor: 'compras', texto: 'Compras', cantidad: compras.length },
+            // Con algo por resolver, el globito naranja cuenta lo pendiente (como una notificación).
+            { valor: 'transf', texto: 'Transferencias', cantidad: pendientes > 0 ? pendientes : transferencias.length, alerta: pendientes > 0 },
+          ]}
+        />
+
+        {vista === 'transf' ? (
+          <>
+          <Text style={[s.suave, { fontSize: 13 }]}>{pendientes > 0 ? `${pendientes} esperando respuesta. ` : ''}Entradas que enviaste o recibiste.</Text>
+          {transferencias.length === 0 ? <Text style={s.suave}>No tienes transferencias. Puedes enviar una entrada desde su pantalla.</Text> : null}
+          {transferencias.map((t) => (
+            <View key={t.id} style={e.item}>
+              <View style={s.fila}>
+                <Text style={[s.subtitulo, { flex: 1, fontSize: 15 }]} numberOfLines={1}>{t.evento}</Text>
+                <Insignia texto={ESTADO_TRANSF[t.estado][0]} tono={ESTADO_TRANSF[t.estado][1]} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.subtitulo} numberOfLines={1}>{c.evento}</Text>
-                <Text style={s.suave}>{c.zona} · {c.cantidad} entrada(s)</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontWeight: '900', fontSize: 16, color: color.texto }}>{pesos(c.monto_centesimos)}</Text>
-                <Insignia texto={ESTADO_COMPRA[c.estado][0]} tono={ESTADO_COMPRA[c.estado][1]} />
-              </View>
-            </View>
-            <Text style={[s.suave, { fontSize: 13 }]}>{fecha(c.pagada_en)}</Text>
-            {c.reembolsado_centesimos > 0 ? <Text style={[s.suave, { color: color.alerta, fontWeight: '700' }]}>Reembolsado: {pesos(c.reembolsado_centesimos)}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {c.entradas.map((en) => (
-                <View key={en.id} style={e.chip}>
-                  <Text style={e.chipTexto}>#{en.id} · {ESTADO_ENTRADA[en.estado] ?? en.estado}</Text>
+              <Text style={[s.suave, { fontSize: 13 }]}>
+                {t.direccion === 'recibida' ? `📥  De ${t.de_email}` : `📤  Para ${t.a_email}`} · Entrada #{t.entrada_id}
+              </Text>
+              {t.estado === 'pendiente' && t.direccion === 'recibida' ? (
+                <View style={[s.fila, { gap: 10, marginTop: 4 }]}>
+                  <Boton texto="Aceptar" onPress={() => void resolver(t, 'aceptar')} estilo={{ flex: 1, minHeight: 46, paddingVertical: 11 }} />
+                  <Boton texto="Rechazar" variante="secundario" onPress={() => void resolver(t, 'rechazar')} estilo={{ flex: 1, minHeight: 46, paddingVertical: 11 }} />
                 </View>
-              ))}
+              ) : null}
+              {t.estado === 'pendiente' && t.direccion === 'enviada' ? (
+                <Boton texto="Cancelar transferencia" variante="secundario" onPress={() => void resolver(t, 'cancelar')} estilo={{ minHeight: 46, paddingVertical: 11 }} />
+              ) : null}
             </View>
-          </Tarjeta>
-        ))}
+          ))}
+          </>
+        ) : (
+          <>
+          <Text style={[s.suave, { fontSize: 13 }]}>{compras.length > 0 ? `${totalEntradas} entrada(s) en ${compras.length} compra(s), con su estado y reembolsos.` : 'Tus compras y reembolsos.'}</Text>
+          {compras.length === 0 ? <Text style={s.suave}>Todavía no compraste entradas.</Text> : null}
+          {compras.map((c) => (
+            <View key={c.id} style={e.item}>
+              <View style={s.fila}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.subtitulo, { fontSize: 15 }]} numberOfLines={1}>{c.evento}</Text>
+                  <Text style={[s.suave, { fontSize: 13 }]}>{c.zona} · {c.cantidad} entrada(s) · {fecha(c.pagada_en)}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={{ fontWeight: '900', fontSize: 15, color: color.texto }}>{pesos(c.monto_centesimos)}</Text>
+                  <Insignia texto={ESTADO_COMPRA[c.estado][0]} tono={ESTADO_COMPRA[c.estado][1]} />
+                </View>
+              </View>
+              {c.reembolsado_centesimos > 0 ? <Text style={[s.suave, { color: color.alerta, fontWeight: '700' }]}>Reembolsado: {pesos(c.reembolsado_centesimos)}</Text> : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {c.entradas.map((en) => (
+                  <View key={en.id} style={e.chip}>
+                    <Text style={e.chipTexto}>#{en.id} · {ESTADO_ENTRADA[en.estado] ?? en.estado}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+          </>
+        )}
 
         <Boton texto="Cerrar sesión" variante="secundario" onPress={async () => { await cerrarSesion(); router.replace('/login'); }} estilo={{ marginTop: espacio.m }} />
       </View>
@@ -167,7 +184,7 @@ const e = StyleSheet.create({
   nombre: { color: '#fff', fontSize: 22, fontWeight: '900', marginTop: 12, letterSpacing: -0.4 },
   email: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
   cifras: { flexDirection: 'row', alignSelf: 'stretch', marginTop: espacio.l, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radio.m, paddingVertical: 12 },
-  icono: { width: 44, height: 44, borderRadius: 14, backgroundColor: color.primarioSuave, alignItems: 'center', justifyContent: 'center' },
+  item: { backgroundColor: color.tarjeta, borderRadius: radio.m, padding: 16, gap: 6, ...sombra },
   chip: { backgroundColor: color.fondo, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipTexto: { fontSize: 12, fontWeight: '700', color: color.suave },
 });

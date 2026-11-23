@@ -143,10 +143,50 @@ export const s = StyleSheet.create({
   punto: { width: 6, height: 6, borderRadius: 3 },
   insigniaTexto: { fontWeight: '800', fontSize: 12, letterSpacing: 0.2 },
   fila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.s },
+  segmentos: { flexDirection: 'row', backgroundColor: '#ebe6f2', borderRadius: 999, padding: 4 },
+  segmento: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 999 },
+  segmentoSel: { backgroundColor: color.tarjeta, ...sombra },
+  segmentoTexto: { fontSize: 14, fontWeight: '800', color: color.suave },
+  contador: { minWidth: 26, height: 26, borderRadius: 999, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  contadorTexto: { fontSize: 13, fontWeight: '900' },
   vacioIcono: { width: 104, height: 104, borderRadius: 52, backgroundColor: color.primarioSuave, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
 });
 
 /** Franja del color de fondo detrás de la hora y la batería: al hacer scroll, el contenido no se mezcla con ellas. */
 export function TapaSuperior({ alto, tono = color.fondo }: { alto: number; tono?: string }) {
   return <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: alto, backgroundColor: tono, opacity: 0.96 }} />;
+}
+
+/**
+ * Dos o más subsecciones con pestañas (control segmentado): solo se ve una a la vez y cada
+ * pestaña muestra su contador. `alerta` resalta el contador (por ejemplo, algo por resolver).
+ */
+export function Segmentos<T extends string>({
+  opciones, actual, cambiar,
+}: {
+  opciones: { valor: T; texto: string; cantidad: number; alerta?: boolean }[];
+  actual: T;
+  cambiar: (v: T) => void;
+}) {
+  return (
+    <View style={s.segmentos} accessibilityRole="tablist">
+      {opciones.map((o) => {
+        const sel = o.valor === actual;
+        return (
+          <Pressable
+            key={o.valor}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: sel }}
+            onPress={() => cambiar(o.valor)}
+            style={[s.segmento, sel && s.segmentoSel]}
+          >
+            <Text style={[s.segmentoTexto, sel && { color: color.texto }]} numberOfLines={1}>{o.texto}</Text>
+            <View style={[s.contador, { backgroundColor: o.alerta ? color.acento : 'transparent' }]}>
+              <Text style={[s.contadorTexto, { color: o.alerta ? '#fff' : sel ? color.primario : color.suave }]}>{o.cantidad}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
