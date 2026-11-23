@@ -8,6 +8,9 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@ticketing/shared": [
+        "../../packages/shared/src/index.ts"
       ]
     }
   },
