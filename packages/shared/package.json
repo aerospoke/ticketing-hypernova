@@ -12,5 +12,6 @@
   },
   "dependencies": {
     "@noble/curves": "2.4.0"
-  }
+  },
+  "react-native": "./src/index.ts"
 }

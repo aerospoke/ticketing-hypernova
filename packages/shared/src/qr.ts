@@ -158,6 +158,11 @@ export function nuevoParDispositivo(): { privada: Uint8Array; publica: string } 
   return { privada, publica: base64url(ed25519.getPublicKey(privada)) };
 }
 
+/** Llave pública (base64url) a partir de la privada guardada en el dispositivo. */
+export function publicaDeDispositivo(privada: Uint8Array): string {
+  return base64url(ed25519.getPublicKey(privada));
+}
+
 function verificarFirma(firma: Uint8Array, mensaje: Uint8Array, llave: Uint8Array): boolean {
   if (firma.length !== 64 || llave.length !== 32) return false;
   try {
