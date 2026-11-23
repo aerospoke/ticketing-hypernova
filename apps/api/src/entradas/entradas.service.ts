@@ -175,6 +175,33 @@ export class EntradasService {
     });
   }
 
+  /** Historial de compras del usuario (paginación por cursor), con sus entradas y reembolsos. */
+  async misCompras(usuarioId: string, cursor?: string) {
+    const { rows } = await this.pool.query(
+      `SELECT c.id, c.evento_id, ev.nombre AS evento, z.nombre AS zona, c.cantidad, c.precio_unitario_centesimos,
+              c.monto_centesimos::text AS monto_centesimos, c.estado, c.pagada_en, c.reembolsada_en,
+              COALESCE((SELECT sum(r.monto_centesimos) FROM reembolsos r WHERE r.compra_id = c.id), 0)::text
+                AS reembolsado_centesimos,
+              (SELECT json_agg(json_build_object('id', e.id::text, 'estado', e.estado) ORDER BY e.id)
+                 FROM entradas e WHERE e.compra_id = c.id) AS entradas
+         FROM compras c
+         JOIN eventos ev ON ev.id = c.evento_id
+         JOIN zonas z ON z.id = c.zona_id
+        WHERE c.usuario_id = $1 AND ($2::bigint IS NULL OR c.id < $2)
+        ORDER BY c.id DESC
+        LIMIT $3`,
+      [usuarioId, cursor ?? null, PAGINA + 1],
+    );
+    const hayMas = rows.length > PAGINA;
+    const items = rows.slice(0, PAGINA).map((r) => ({
+      ...r,
+      monto_centesimos: Number(r.monto_centesimos),
+      reembolsado_centesimos: Number(r.reembolsado_centesimos),
+      entradas: r.entradas ?? [],
+    }));
+    return { items, siguiente_cursor: hayMas ? items.at(-1)!.id : null };
+  }
+
   async misTransferencias(usuarioId: string) {
     const { rows } = await this.pool.query(
       `SELECT t.id, t.entrada_id, t.estado, t.creada_en, t.resuelta_en,

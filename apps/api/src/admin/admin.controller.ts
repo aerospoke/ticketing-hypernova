@@ -1,10 +1,13 @@
-import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 import { Roles, SesionActual } from '../auth/auth.guard';
 import type { Sesion } from '../auth/tokens';
 import { exigirAccesoEvento } from '../common/acceso';
+import { exigirClave, IdempotenciaService, responder } from '../compra/idempotencia.service';
 import { PG_POOL } from '../db/db.module';
+import { ReembolsosService } from '../entradas/reembolsos.service';
 
 const Id = z.string().regex(/^[1-9]\d{0,17}$/, 'id inválido');
 const Filtro = z.object({
@@ -12,6 +15,8 @@ const Filtro = z.object({
   cursor: Id.optional(),
 });
 const PAGINA = 50;
+// Motivo obligatorio: queda en el reembolso y en la auditoría.
+const ConMotivo = z.object({ motivo: z.string().trim().min(3).max(500) });
 
 /**
  * Portal de administración. Cada ruta valida en el servidor que el evento sea del
@@ -20,7 +25,43 @@ const PAGINA = 50;
 @Roles('organizador', 'admin')
 @Controller('admin')
 export class AdminController {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly reembolsos: ReembolsosService,
+    private readonly idem: IdempotenciaService,
+  ) {}
+
+  /** Reembolso administrativo (con motivo y autor). Sin fecha límite; nunca si está usada. */
+  @Post('entradas/:id/reembolso')
+  async reembolsar(
+    @SesionActual() s: Sesion,
+    @Headers('idempotency-key') clave: string | undefined,
+    @Param('id', { schema: Id }) id: string,
+    @Body({ schema: ConMotivo }) b: z.infer<typeof ConMotivo>,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const k = exigirClave(clave);
+    const r = await this.idem.ejecutar(s.usuarioId, 'admin_reembolsar', k, { id, motivo: b.motivo }, (c) =>
+      this.reembolsos.porAdministracion(c, s, id, 'reembolsada', b.motivo),
+    );
+    return responder(res, r);
+  }
+
+  /** Anulación (sin devolución de dinero), p. ej. por fraude. Con motivo y autor. */
+  @Post('entradas/:id/anular')
+  async anular(
+    @SesionActual() s: Sesion,
+    @Headers('idempotency-key') clave: string | undefined,
+    @Param('id', { schema: Id }) id: string,
+    @Body({ schema: ConMotivo }) b: z.infer<typeof ConMotivo>,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const k = exigirClave(clave);
+    const r = await this.idem.ejecutar(s.usuarioId, 'admin_anular', k, { id, motivo: b.motivo }, (c) =>
+      this.reembolsos.porAdministracion(c, s, id, 'anulada', b.motivo),
+    );
+    return responder(res, r);
+  }
 
   /** Incidentes del evento (doble ingreso, firma inválida, escáner desincronizado...). */
   @Get('eventos/:id/incidentes')
