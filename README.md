@@ -118,6 +118,8 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/entradas/:id/material` | sesión (titular) | Material del código rotativo: `{dispositivo_pubkey}` y devuelve la credencial firmada por el servidor |
 | POST | `/v1/entradas/:id/transferencias` | sesión (titular) | Transferir por correo `{email}`. Queda pendiente. |
 | GET | `/v1/me/transferencias` | sesión | Transferencias enviadas y recibidas, con su estado |
+| GET | `/v1/me/compras?cursor=` | sesión | Historial de compras, con el estado de cada entrada y el monto reembolsado |
+| POST | `/v1/entradas/:id/reembolso` | sesión (comprador titular) + `Idempotency-Key` | Reembolso hasta la fecha límite del evento |
 | POST | `/v1/transferencias/:id/aceptar` | sesión (destinatario) | Cambia el titular, sube la versión y revoca el código anterior |
 | POST | `/v1/transferencias/:id/rechazar` | sesión (destinatario) | Rechaza la transferencia |
 | POST | `/v1/transferencias/:id/cancelar` | sesión (emisor) | Cancela una transferencia pendiente |
@@ -128,6 +130,8 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/escaner/turnos/:id/cerrar` | staff | Fin de turno |
 | POST | `/v1/escaner/lotes` | staff (dueño del dispositivo) | Sube hasta 500 escaneos hechos sin red. Reenviar el lote es seguro. |
 | GET | `/v1/admin/eventos/:id/incidentes` | organizador dueño o admin | Incidentes del evento (doble ingreso, firma inválida, escáner desincronizado) |
+| POST | `/v1/admin/entradas/:id/reembolso` | organizador dueño o admin + `Idempotency-Key` | Reembolso `{motivo}`, sin fecha límite. Queda en la auditoría. |
+| POST | `/v1/admin/entradas/:id/anular` | organizador dueño o admin + `Idempotency-Key` | Anulación sin devolución `{motivo}` (por ejemplo, fraude). Queda en la auditoría. |
 | GET | `/health` | pública | Liveness |
 | GET | `/ready` | pública | Readiness |
 
@@ -181,6 +185,26 @@ POST /reservas ──► reserva activa (10 min) ──► POST /reservas/:id/pa
   - Si ya pasó, se intenta recuperar el cupo con los mismos UPDATE condicionales. Si hay
     cupo, se emite. Si no, la compra queda `reembolso_automatico`: el cobro se registra y se
     devuelve en `reembolsos` con autor "sistema", y no se emiten entradas.
+
+### Reembolsos y anulaciones
+
+- **Quién puede:**
+  - El **comprador**, mientras siga siendo titular y **antes de `reembolsable_hasta`**. El
+    dinero vuelve a quien pagó, así que quien recibió una entrada por transferencia no
+    puede reembolsarla.
+  - El **organizador dueño o el admin**, con motivo obligatorio y sin fecha límite. Queda
+    registrado con su autor en `reembolsos` y en la **auditoría inmutable**.
+- **Nunca si la entrada se usó:**
+  `UPDATE entradas SET estado = 'reembolsada' WHERE id = $1 AND estado IN ('pagada','transferida')`.
+  Con la entrada `usada` la sentencia afecta 0 filas y la API responde `409 entrada_usada`. El
+  escaneo bloquea la misma fila, así que un reembolso y un ingreso simultáneos se serializan.
+- **En la misma transacción:**
+  1. Se cancelan las transferencias pendientes.
+  2. Se devuelve el cupo de la cuenta y de la zona, así que **vuelve a la venta**.
+  3. Se registra el reembolso (`UNIQUE (entrada_id)`: una entrada no se reembolsa dos veces).
+  4. Se publica la revocación para los escáneres.
+  5. La compra pasa a `reembolsada` cuando no le queda ninguna entrada vigente.
+- **Anular** es lo mismo, pero sin devolución de dinero.
 
 ### Código QR rotativo (invariante 3)
 
@@ -352,6 +376,17 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
     y 10 incidentes.
   - Una firma inválida abre un incidente.
   - Una entrada reembolsada que entra genera `escaner_desincronizado`.
+- **Reembolsos:**
+  - Devuelve el dinero una vez, libera el cupo (otro comprador puede tomar el lugar) y
+    revoca el código.
+  - Una entrada **usada** no se reembolsa, ni por el asistente ni por administración.
+  - Doble toque con la misma clave: un solo reembolso.
+  - Fuera de plazo: el asistente no puede, el organizador sí.
+  - Solo el comprador que sigue siendo titular puede pedirlo, y una transferencia pendiente
+    se cancela.
+  - Una compra de 2 entradas queda `reembolsada` recién cuando se reembolsan las dos.
+  - Reembolso y anulación administrativos quedan con motivo y autor en la auditoría.
+  - Organizador ajeno: 404. Asistente en una ruta de admin: 403.
 - **Permisos:**
   - Staff no asignado: no puede abrir turno.
   - Dispositivo ajeno: no se puede registrar ni usar para subir lotes.
@@ -366,6 +401,8 @@ permisos que en producción). Cada test crea su propio evento y su zona. Cubren:
 **¿Los tests detectan bugs de verdad?** Se comprobó rompiendo el código a propósito:
 - **Aforo:** sin `vendidas + reservadas + n <= aforo` en el UPDATE, fallan 2 tests.
 - **QR:** sin el chequeo de la ventana de 30 s, falla el test de la captura de pantalla.
+- **Reembolso:** sin `AND estado IN ('pagada','transferida')`, fallan el test de la entrada
+  usada y el del doble reembolso.
 
 En el caso del aforo, además, **no hubo sobreventa**: el `CHECK` de la tabla rechazó las escrituras (la API respondió 500 en lugar de 409). Las dos
 capas funcionan por separado.
@@ -421,7 +458,7 @@ API (**pendiente**). Cuando lo haga, la URL se configurará con `EXPO_PUBLIC_API
 
 ## Huecos conocidos
 
-- Sin endpoints de eventos (cartelera y disponibilidad), reembolsos, ni la administración de eventos, zonas, fases y staff.
+- Sin endpoints de eventos (cartelera y disponibilidad), ni la administración de eventos, zonas, fases y staff.
 - Rate limiting por IP en memoria: con varias instancias de la API haría falta un almacén
   compartido (Redis). Detrás de un proxy, todos los clientes comparten la IP del proxy;
   todavía no se configuró `trust proxy`.
