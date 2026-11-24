@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorApi, mensajeDeError, registrarse } from '../lib/api';
 import { Aviso, Boton, Campo, s } from '../ui/componentes';
@@ -36,7 +36,7 @@ export default function Registro() {
   }
 
   return (
-    <KeyboardAvoidingView style={s.pantalla} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.pantalla} behavior="padding">
       <ScrollView contentContainerStyle={[s.contenido, { paddingTop: 0, paddingHorizontal: 0 }]} keyboardShouldPersistTaps="handled">
         {/* Sin foto de un artista: al usuario nuevo se le cuenta qué gana con la cuenta. */}
         <View style={[e.cabecera, { paddingTop: arriba + 64 }]}>

@@ -1,6 +1,6 @@
 import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { iniciarSesion, mensajeDeError } from '../lib/api';
 import { Aviso, Boton, Campo, s } from '../ui/componentes';
@@ -43,7 +43,7 @@ export default function Login() {
 
   const foto = FOTOS[actual];
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: color.noche }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: color.noche }} behavior="padding">
       <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         <Portada foto={foto} alto={Math.max(320, height * 0.46)} transicion={500} hasta={0.92}>
           <View style={[e.marca, { top: arriba + 14 }]}>

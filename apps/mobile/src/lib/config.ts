@@ -23,29 +23,58 @@ function normalizar(url: string) {
   return url.trim().replace(/\/+$/, '');
 }
 
-/** URL vigente. Se lee una vez de SQLite y después queda en memoria. */
+/**
+ * URL vigente. Se lee una vez de SQLite y después queda en memoria. Un valor guardado que no
+ * pasa la validación (por ejemplo, de una versión anterior más permisiva) se ignora.
+ */
 export function apiUrl(): string {
-  enMemoria ??= leerAjuste(CLAVE) ?? SERVIDOR_POR_DEFECTO;
-  return enMemoria;
+  if (enMemoria) return enMemoria;
+  const guardada = leerAjuste(CLAVE);
+  let url = SERVIDOR_POR_DEFECTO;
+  if (guardada) {
+    try {
+      url = validarServidor(guardada);
+    } catch {
+      // inválida: se queda la de por defecto
+    }
+  }
+  enMemoria = url;
+  return url;
 }
 
 /** Valida y guarda la URL. Lanza un Error con un texto para mostrar si no es válida. */
 export function cambiarServidor(texto: string): string {
-  let url = normalizar(texto);
+  const url = validarServidor(texto);
+  guardarAjuste(CLAVE, url);
+  enMemoria = url;
+  return url;
+}
+
+/** Normaliza y valida una dirección. Lanza un Error con un texto para mostrar si no es válida. */
+function validarServidor(texto: string): string {
+  const ejemplo = 'Escribe una dirección como http://192.168.1.50:3000';
+  // Se acepta con o sin "http://"; un esquema a medio escribir ("http:", "http:/") se descarta.
+  let url = normalizar(texto).replace(/^https?:\/{0,2}(?=[^/]|$)/i, (m) => (m.toLowerCase().startsWith('https') ? 'https://' : 'http://'));
   if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
   let u: URL;
   try {
     u = new URL(url);
   } catch {
-    throw new Error('Escribe una dirección como http://192.168.1.50:3000');
+    throw new Error(ejemplo);
   }
-  if (!u.hostname || (u.pathname !== '/' && u.pathname !== '')) {
+  // Solo una IPv4 completa, "localhost" o un nombre con punto: "http" o "192.168.1." no valen.
+  // Se valida el host TAL COMO SE ESCRIBIÓ: el parser de URL "completa" IPs abreviadas
+  // ("192.168.1." pasa a ser 192.168.0.1) y se guardaría una dirección que nadie escribió.
+  const host = url.replace(/^https?:\/\//i, '').split(/[:/?#]/)[0].toLowerCase();
+  if (host !== u.hostname) throw new Error(ejemplo);
+  const esIp = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  const ipValida = esIp !== null && esIp.slice(1).every((n) => Number(n) <= 255);
+  const nombreValido = host === 'localhost' || (!/^[\d.]+$/.test(host) && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host));
+  if (!ipValida && !nombreValido) throw new Error(ejemplo);
+  if (u.pathname !== '/' && u.pathname !== '') {
     throw new Error('Escribe solo la dirección y el puerto, por ejemplo http://192.168.1.50:3000');
   }
-  url = `${u.protocol}//${u.host}`;
-  guardarAjuste(CLAVE, url);
-  enMemoria = url;
-  return url;
+  return `${u.protocol}//${u.host}`;
 }
 
 /** ¿Responde la API en esa dirección? Consulta /health con un timeout corto. */

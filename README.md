@@ -606,7 +606,7 @@ Para usarlo:
 1. Levanta el backend visible en la red local: `API_BIND=0.0.0.0 docker compose up`.
 2. Instala el APK en el teléfono (o arrástralo al emulador).
 3. En el login, toca **Servidor · Cambiar**, escribe `http://<IP-de-tu-PC>:3000` y pulsa
-   **Guardar y probar**. Debe decir "✓ Conectado".
+   **Conectar**. Debe decir "✓ Conectado".
 
 Un mismo APK sirve en cualquier red porque la dirección de la API se elige en el login y se
 guarda en el teléfono. Solo se puede cambiar **sin sesión abierta**: los tokens de un

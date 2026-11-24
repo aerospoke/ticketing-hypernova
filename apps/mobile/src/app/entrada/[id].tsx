@@ -2,7 +2,7 @@ import { TOKEN_ROTACION_SEGUNDOS } from '@ticketing/shared';
 import { randomUUID } from 'expo-crypto';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { api, ErrorApi, mensajeDeError } from '../../lib/api';
 import { obtenerMaterial, parDispositivo } from '../../lib/billetera';
@@ -68,6 +68,9 @@ export default function EntradaPantalla() {
 
   const progreso = Math.max(0, Math.min(1, segundosParaRotar / TOKEN_ROTACION_SEGUNDOS));
   return (
+    // Con pantalla completa (edge-to-edge), Android no reacomoda la vista al abrir el teclado:
+    // sin esto, el campo de transferir quedaría tapado.
+    <KeyboardAvoidingView style={s.pantalla} behavior="padding">
     <ScrollView style={s.pantalla} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
       {encabezado}
       <Portada foto={fotoDe(evento_id ?? '0')} alto={240} hasta={0.95}>
@@ -114,6 +117,7 @@ export default function EntradaPantalla() {
         <Boton texto="Pedir reembolso" variante="secundario" onPress={reembolsar} cargando={accion === 'reembolsar'} deshabilitado={accion !== null} estilo={{ borderColor: '#f4c7c3' }} />
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

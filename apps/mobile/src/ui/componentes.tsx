@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, type TextInputProps, View, type ViewStyle } from 'react-native';
 import { mensajeDeError } from '../lib/api';
 import { Icono, type NombreIcono } from './icono';
@@ -89,11 +89,33 @@ export function Boton({
 }
 
 export function Campo(props: TextInputProps & { etiqueta: string }) {
-  const { etiqueta, ...resto } = props;
+  const { etiqueta, secureTextEntry, ...resto } = props;
+  // En contraseñas, "Ver" muestra lo escrito: el teclado del teléfono puede cambiar una
+  // mayúscula o agregar un espacio sin que se note entre los puntos.
+  const [visible, setVisible] = useState(false);
   return (
     <View style={{ gap: 6 }}>
       <Text style={s.etiqueta}>{etiqueta}</Text>
-      <TextInput placeholderTextColor="#a59fb5" style={s.campo} {...resto} />
+      <View>
+        <TextInput
+          placeholderTextColor="#a59fb5"
+          style={[s.campo, secureTextEntry ? { paddingRight: 72 } : null]}
+          secureTextEntry={secureTextEntry && !visible}
+          autoCorrect={secureTextEntry ? false : resto.autoCorrect}
+          {...resto}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+            onPress={() => setVisible((v) => !v)}
+            hitSlop={8}
+            style={s.ver}
+          >
+            <Text style={s.verTexto}>{visible ? 'Ocultar' : 'Ver'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -131,6 +153,8 @@ export const s = StyleSheet.create({
   subtitulo: { fontSize: 16, fontWeight: '700', color: color.texto },
   texto: { fontSize: 15, color: color.texto },
   suave: { fontSize: 14, color: color.suave, lineHeight: 20 },
+  ver: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', paddingHorizontal: 12 },
+  verTexto: { color: color.primario, fontWeight: '800', fontSize: 14 },
   etiqueta: { fontSize: 13, fontWeight: '700', color: color.suave },
   campo: { backgroundColor: color.fondo, borderWidth: 1.5, borderColor: color.borde, borderRadius: radio.s, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: color.texto },
   boton: { borderRadius: radio.m, paddingVertical: 15, paddingHorizontal: espacio.l, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
