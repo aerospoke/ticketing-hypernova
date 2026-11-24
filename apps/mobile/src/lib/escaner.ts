@@ -22,6 +22,8 @@ export interface EventoAsignado {
   fecha: string;
   puertas: { id: string; nombre: string }[];
   zonas: { id: string; nombre: string }[];
+  /** Lo que este staff ya sincronizó en el evento (lo pendiente en el teléfono no cuenta). */
+  mis_cifras: { validos: number; rechazos: number; dobles: number; incidentes_abiertos: number; ultimo_escaneo: string | null };
 }
 
 export interface Turno {

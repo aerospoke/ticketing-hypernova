@@ -41,6 +41,7 @@ export default function Raiz() {
         <Stack.Screen name="reserva/[id]" options={{ title: 'Tu reserva', headerBackVisible: false }} />
         <Stack.Screen name="entrada/[id]" options={{ title: 'Entrada' }} />
         <Stack.Screen name="escaner/index" options={{ headerShown: false }} />
+        <Stack.Screen name="escaner/evento" options={{ title: '' }} />
         <Stack.Screen name="escaner/camara" options={{ title: 'Escanear', headerShown: false }} />
         <Stack.Screen name="escaner/resumen" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
