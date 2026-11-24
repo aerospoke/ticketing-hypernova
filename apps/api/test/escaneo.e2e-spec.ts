@@ -136,6 +136,14 @@ describe('Invariante 4: una entrada entra una sola vez', () => {
     expect(inc.body.items).toHaveLength(1);
     expect(inc.body.items[0]).toMatchObject({ tipo: 'doble_ingreso', estado: 'abierto', entrada_id: entrada, puerta: 'Puerta Sur' });
     expect(inc.body.items[0].detalle.ingreso_valido.puerta_id).toBeDefined();
+
+    // Cada staff ve sus propias cifras del evento: el de la puerta sur, su doble ingreso.
+    const cifras = async (auth: string) =>
+      (await ctx.http.get('/v1/escaner/eventos').set('authorization', auth).expect(200)).body.find((e: { id: string }) => e.id === evento).mis_cifras;
+    expect(await cifras(norte.auth)).toMatchObject({ validos: 1, rechazos: 0, dobles: 0, incidentes_abiertos: 0 });
+    const sur2 = await cifras(sur.auth);
+    expect(sur2).toMatchObject({ validos: 0, rechazos: 0, dobles: 1, incidentes_abiertos: 1 });
+    expect(sur2.ultimo_escaneo).toBeTruthy();
   });
 
   it('reenviar el mismo lote no duplica ingresos ni incidentes', async () => {

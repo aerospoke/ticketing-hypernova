@@ -53,7 +53,12 @@ export class EscanerController {
     return { alg: 'Ed25519', llave_publica: this.firma.llavePublica };
   }
 
-  /** Eventos asignados al staff (no finalizados), con sus puertas y zonas, para iniciar turno. */
+  /**
+   * Eventos asignados al staff (no finalizados), con sus puertas y zonas, para iniciar turno.
+   * `mis_cifras`: lo que ESTE staff ya sincronizó en cada evento (válidos, rechazos, dobles
+   * ingresos, incidentes abiertos sobre sus escaneos y su último escaneo). Solo lo propio:
+   * todo se filtra por el staff de la sesión.
+   */
   @Roles('staff')
   @Get('eventos')
   async misEventos(@SesionActual() s: Sesion) {
@@ -62,8 +67,22 @@ export class EscanerController {
               COALESCE((SELECT json_agg(json_build_object('id', p.id::text, 'nombre', p.nombre) ORDER BY p.id)
                           FROM puertas p WHERE p.evento_id = e.id), '[]') AS puertas,
               COALESCE((SELECT json_agg(json_build_object('id', z.id::text, 'nombre', z.nombre) ORDER BY z.id)
-                          FROM zonas z WHERE z.evento_id = e.id), '[]') AS zonas
+                          FROM zonas z WHERE z.evento_id = e.id), '[]') AS zonas,
+              json_build_object(
+                'validos', m.validos, 'rechazos', m.rechazos, 'dobles', m.dobles,
+                'incidentes_abiertos', (SELECT count(*)::int FROM incidentes inc
+                                          JOIN ingresos i ON i.id = inc.ingreso_id
+                                         WHERE inc.evento_id = e.id AND i.staff_id = $1 AND inc.estado = 'abierto'),
+                'ultimo_escaneo', m.ultimo) AS mis_cifras
          FROM asignaciones_staff a JOIN eventos e ON e.id = a.evento_id
+         -- Usa el índice (evento_id, escaneado_en) y filtra por staff dentro del evento.
+         CROSS JOIN LATERAL (
+           SELECT count(*) FILTER (WHERE i.resultado = 'valido')::int            AS validos,
+                  count(*) FILTER (WHERE i.resultado = 'rechazado')::int         AS rechazos,
+                  count(*) FILTER (WHERE i.resultado = 'duplicado_offline')::int AS dobles,
+                  max(i.escaneado_en)                                            AS ultimo
+             FROM ingresos i WHERE i.evento_id = e.id AND i.staff_id = $1
+         ) m
         WHERE a.staff_id = $1 AND e.estado = 'publicado' AND e.fecha > now() - interval '1 day'
         ORDER BY e.fecha`,
       [s.usuarioId],

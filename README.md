@@ -162,7 +162,7 @@ Todas las rutas de negocio llevan el prefijo `/v1`. **Cerradas por defecto:** ex
 | POST | `/v1/transferencias/:id/rechazar` | sesión (destinatario) | Rechaza la transferencia |
 | POST | `/v1/transferencias/:id/cancelar` | sesión (emisor) | Cancela una transferencia pendiente |
 | GET | `/v1/escaner/llave` | pública | Llave pública Ed25519 del servidor, para verificar sin red |
-| GET | `/v1/escaner/eventos` | staff | Eventos asignados, con puertas y zonas, para iniciar turno |
+| GET | `/v1/escaner/eventos` | staff | Eventos asignados, con puertas y zonas, para iniciar turno. Incluye `mis_cifras`: válidos, rechazos, dobles ingresos, incidentes abiertos y último escaneo **de ese staff** |
 | GET | `/v1/escaner/eventos/:id/revocaciones?desde=` | staff asignado, organizador dueño o admin | Revocaciones incrementales por cursor |
 | POST | `/v1/escaner/dispositivos` | staff | Registro del dispositivo `{id (uuid generado en el teléfono), nombre, plataforma}` |
 | POST | `/v1/escaner/turnos` | staff asignado | Inicio de turno `{evento_id, puerta_id, dispositivo_id}`: queda registrado quién escanea, dónde y con qué equipo |
