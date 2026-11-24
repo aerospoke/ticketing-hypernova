@@ -84,6 +84,10 @@ y el servidor devuelve el mismo resultado.
    15 s si hay pendientes, y también con el botón **Sincronizar**: sube los escaneos en lotes
    de 500 y baja las revocaciones nuevas desde el cursor. Si la app se cierra a mitad, reenviar
    es seguro.
+6. **Terminar turno.** Intenta sincronizar, cierra el turno y muestra un **resumen**: válidas,
+   rechazos, dobles ingresos y lo que quedó sin subir, con la lista de escaneos. Sin red no se
+   pierde nada: los escaneos siguen en SQLite y el servidor acepta los de un turno cerrado si
+   vienen del mismo dispositivo.
 
 ## Demo: dos puertas offline (caso 6 del enunciado)
 
@@ -113,8 +117,7 @@ automatizados; Detox o Maestro quedan como bonus.
 ## APK instalable
 
 **Usarlo:** descarga el APK de la página de Releases del repositorio e instálalo. En el
-login, toca **Servidor · Cambiar**, escribe `http://<IP-de-tu-PC>:3000` y pulsa **Guardar y
-probar**. La API tiene que estar levantada con `API_BIND=0.0.0.0`.
+login, toca **Servidor · Cambiar**, escribe `http://<IP-de-tu-PC>:3000` y pulsa **Conectar**. La API tiene que estar levantada con `API_BIND=0.0.0.0`.
 
 **Compilarlo** (Java 17 y Android SDK; no hace falta cuenta de Expo):
 
