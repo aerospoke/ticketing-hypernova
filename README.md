@@ -3,7 +3,8 @@
 Plataforma de venta de entradas con aforo limitado y control de acceso offline.
 Prueba técnica de Hypernova Labs.
 
-> **🎥 Video del recorrido:** _(pendiente: enlace no listado)_
+> **🎥 Video del recorrido (11:29):** https://youtu.be/3Ijb3cSI0ss — grabado sobre el commit `47efb3d`; después solo cambió este enlace.
+>
 > **🎥 Video de dos escáneres offline detectando el doble ingreso:** https://youtu.be/xpC8kSX8hm0
 
 ## Resumen de la entrega
